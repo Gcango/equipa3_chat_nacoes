@@ -1,0 +1,2 @@
+-- Chat_Nações — Comunidade Digital Escolar
+-- Criar tabelas após validar o DER.
