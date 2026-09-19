@@ -1,1 +1,2 @@
--- Dados fictícios de teste. Nunca usar dados pessoais reais.
+-- Seed de referência — dados reais aplicados via backend/prisma/seed.ts
+-- Contas fictícias para demo (passwords no README do backend)

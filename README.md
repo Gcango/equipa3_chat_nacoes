@@ -1,65 +1,68 @@
 # Chat_Nações — Comunidade Digital Escolar
 
-## Visão geral
-Rede social privada da escola com publicações, comentários, reações, denúncias e moderação.
+Rede social privada da escola (EP Gabriel): publicações, comentários, reações, denúncias e moderação.
 
-## Perfis principais
-- Administrador/Moderador
-- Professor
-- Aluno
+**Domínio de registo:** `@epgerabriel.edu.pt`
 
 ## MVP
-- Registo com email escolar
-- Autenticação
-- Perfis de utilizador
-- Criação de publicações
-- Feed
-- Comentários e reações
-- Sistema de denúncia
-- Painel de moderação
-- Remoção de conteúdo
-- Gestão de estado das contas
 
-## Backlog inicial sugerido
-- **US01 — Registo com email escolar:** Como aluno, quero criar conta usando o meu email escolar.
-- **US02 — Implementar autenticação:** Como utilizador, quero iniciar sessão de forma segura.
-- **US03 — Criar perfil:** Como utilizador, quero consultar e editar o meu perfil.
-- **US04 — Criar publicação:** Como aluno, quero publicar texto e, futuramente, imagem/vídeo.
-- **US05 — Implementar feed:** Como utilizador, quero consultar publicações da comunidade.
-- **US06 — Comentários e reações:** Como utilizador, quero comentar e reagir a publicações.
-- **US07 — Denunciar conteúdo:** Como utilizador, quero denunciar conteúdo inadequado.
-- **US08 — Painel de moderação:** Como administrador, quero analisar denúncias e tomar decisões.
+Login (credenciais da escola) → perfil → publicação → feed → comentário/reação → denúncia → moderação
 
-## Entidades iniciais a analisar
-`users`, `profiles`, `posts`, `media`, `comments`, `reactions`, `reports`, `moderation_actions`, `events`, `notifications`
+## Documentação
 
-## Estrutura
-```text
-equipa3_chat_nacoes/
-├── frontend/
-├── backend/
-├── database/
-├── docs/
-├── tests/
-├── .github/
-├── README.md
-├── CONTRIBUTING.md
-├── SECURITY.md
-└── .gitignore
+Ver [`docs/`](docs/) — análise, requisitos, arquitetura, backlog US01–US08.
+
+## Stack
+
+| Camada | Tecnologia |
+|--------|------------|
+| Frontend | React + TypeScript + Vite |
+| Backend | Express + TypeScript + Prisma |
+| BD | SQLite (dev) |
+
+## Como executar
+
+### Backend
+
+```bash
+cd backend
+cp .env.example .env
+npm install
+npx prisma migrate dev
+npm run db:seed
+npm run dev
 ```
 
-## Fluxo obrigatório
-Problema → Análise → Requisitos → Backlog → Issue → Branch → Desenvolvimento → Commit + Push → Pull Request → Code Review → Merge → Teste → Entrega
+API: `http://localhost:3001`
 
-## Regra de ouro
-Nenhum desenvolvimento relevante deve começar sem uma Issue associada.
+### Frontend
+
+```bash
+cd frontend
+cp .env.example .env
+npm install
+npm run dev
+```
+
+Web: `http://localhost:5173` (recarrega ao guardar ficheiros — ver [`frontend/PREVIEW.md`](frontend/PREVIEW.md))
+
+## Contas de demonstração (fictícias)
+
+| Email | Password | Papel |
+|-------|----------|-------|
+| admin.demo@epgerabriel.edu.pt | Admin123! | ADMIN (ATIVO) |
+| aluno.demo@epgerabriel.edu.pt | Aluno123! | ALUNO (ATIVO) |
+| pendente.demo@epgerabriel.edu.pt | Aluno123! | ALUNO (PENDENTE) |
+
+Não usar dados pessoais reais. Ver [`SECURITY.md`](SECURITY.md).
 
 ## Equipa
-| Nome | Papel inicial | GitHub |
-|---|---|---|
-| | | |
-| | | |
-| | | |
 
-## Tecnologias
-A definir pela equipa e aprovar com o professor.
+| Nome | Papel | GitHub |
+|------|-------|--------|
+| Gabriel | Desenvolvimento | Gcango |
+| Geraldo (Sense) | Desenvolvimento | main_sense |
+
+## Processo Git
+
+Issue → branch `feature/USxx-...` → PR → code review → merge em `main`.

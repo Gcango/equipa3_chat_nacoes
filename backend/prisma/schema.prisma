@@ -1,0 +1,129 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ALUNO
+  PROFESSOR
+  ADMIN
+}
+
+enum UserStatus {
+  PENDENTE
+  ATIVO
+  SUSPENSO
+  BLOQUEADO
+}
+
+enum PostType {
+  NORMAL
+  NOTICIA
+  PROJETO
+  EVENTO
+}
+
+enum ReportReason {
+  BULLYING
+  INSULTO
+  AMEACA
+  OFENSIVO
+  IMPROPRIO
+  SPAM
+  OUTRO
+}
+
+enum ReportStatus {
+  ABERTA
+  EM_ANALISE
+  RESOLVIDA
+  REJEITADA
+}
+
+enum ReactionType {
+  LIKE
+  LOVE
+  SUPPORT
+}
+
+enum ReportTargetType {
+  POST
+  COMMENT
+}
+
+model User {
+  id             String     @id @default(uuid())
+  name           String
+  email          String     @unique
+  studentNumber  String     @unique
+  course         String
+  classGroup     String
+  passwordHash   String
+  role           Role       @default(ALUNO)
+  status         UserStatus @default(PENDENTE)
+  bio            String?
+  avatarUrl      String?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  posts          Post[]
+  comments       Comment[]
+  reactions      Reaction[]
+  reports        Report[]   @relation("Reporter")
+  reviewedReports Report[]  @relation("Reviewer")
+}
+
+model Post {
+  id        String    @id @default(uuid())
+  authorId  String
+  author    User      @relation(fields: [authorId], references: [id])
+  content   String
+  type      PostType  @default(NORMAL)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+  comments  Comment[]
+  reactions Reaction[]
+}
+
+model Comment {
+  id        String    @id @default(uuid())
+  postId    String
+  post      Post      @relation(fields: [postId], references: [id])
+  authorId  String
+  author    User      @relation(fields: [authorId], references: [id])
+  content   String
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+}
+
+model Reaction {
+  id        String       @id @default(uuid())
+  postId    String
+  post      Post         @relation(fields: [postId], references: [id])
+  userId    String
+  user      User         @relation(fields: [userId], references: [id])
+  type      ReactionType @default(LIKE)
+  createdAt DateTime     @default(now())
+
+  @@unique([postId, userId])
+}
+
+model Report {
+  id              String           @id @default(uuid())
+  targetType      ReportTargetType
+  targetId        String
+  reporterId      String
+  reporter        User             @relation("Reporter", fields: [reporterId], references: [id])
+  reason          ReportReason
+  description     String?
+  status          ReportStatus     @default(ABERTA)
+  reviewerId      String?
+  reviewer        User?            @relation("Reviewer", fields: [reviewerId], references: [id])
+  resolutionNote  String?
+  createdAt       DateTime         @default(now())
+  resolvedAt      DateTime?
+}

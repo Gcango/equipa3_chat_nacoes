@@ -1,5 +1,12 @@
-# Base de Dados
+# Base de dados
 
-Entidades iniciais: `users`, `profiles`, `posts`, `media`, `comments`, `reactions`, `reports`, `moderation_actions`, `events`, `notifications`
+- **Schema de referência:** [`schema.sql`](schema.sql)
+- **Migrações activas:** `backend/prisma/` (Prisma + SQLite em desenvolvimento)
 
-Validar o DER antes de criar o esquema final.
+```bash
+cd backend
+cp .env.example .env
+npm install
+npx prisma migrate dev
+npm run db:seed
+```
