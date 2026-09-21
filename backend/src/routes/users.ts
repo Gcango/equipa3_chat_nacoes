@@ -26,6 +26,22 @@ usersRouter.get("/me", requireAuth, async (req, res) => {
   return res.json(user);
 });
 
+usersRouter.get("/directory", requireAuth, requireActive, async (req, res) => {
+  const users = await prisma.user.findMany({
+    where: { status: "ATIVO", id: { not: req.user!.id } },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      course: true,
+      classGroup: true,
+      role: true,
+    },
+    orderBy: { name: "asc" },
+  });
+  return res.json(users);
+});
+
 usersRouter.patch("/me", requireAuth, requireActive, async (req, res) => {
   const schema = z.object({
     bio: z.string().max(500).optional(),

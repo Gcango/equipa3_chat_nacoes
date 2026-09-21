@@ -1,6 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
-import type { User } from "../api";
+import type { CommunitySummary, User } from "../api";
 import CofinanciamentoBanner from "./CofinanciamentoBanner";
+import CommunityHeader from "./CommunityHeader";
 import LogoBrand from "./LogoBrand";
 import UserAvatar from "./UserAvatar";
 
@@ -15,13 +16,30 @@ type Props = {
   children: React.ReactNode;
   onLogout?: () => void;
   hero?: { title: string; subtitle?: string };
+  /** Layout comunidade (mockup): cabeçalho unificado com logo GERABRIEL */
+  communityFeed?: boolean;
+  communitySummary?: CommunitySummary;
 };
 
-export default function AppShell({ user, children, onLogout, hero }: Props) {
+export default function AppShell({
+  user,
+  children,
+  onLogout,
+  hero,
+  communityFeed,
+  communitySummary,
+}: Props) {
   const { pathname } = useLocation();
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell${communityFeed ? " app-shell--community" : ""}`}>
+      {communityFeed ? (
+        <CommunityHeader
+          user={user}
+          onLogout={onLogout}
+          summary={communitySummary}
+        />
+      ) : (
       <div className="site-header-block">
       <header className="site-top">
         <div className="site-top__inner">
@@ -44,6 +62,7 @@ export default function AppShell({ user, children, onLogout, hero }: Props) {
         </div>
       </header>
 
+      {!communityFeed && (
       <nav className="site-main-nav" aria-label="Menu principal">
         <div className="site-main-nav__inner">
           <Link
@@ -70,9 +89,11 @@ export default function AppShell({ user, children, onLogout, hero }: Props) {
           <span className="site-main-nav__item site-main-nav__item--muted">@epgerabriel.edu.pt</span>
         </div>
       </nav>
+      )}
       </div>
+      )}
 
-      {hero && (
+      {hero && !communityFeed && (
         <section className="hero hero--compact" aria-label="Destaque">
           <div className="hero__overlay" />
           <div className="hero__content hero__content--wide">
@@ -84,7 +105,7 @@ export default function AppShell({ user, children, onLogout, hero }: Props) {
       )}
 
       <div className="site-body">{children}</div>
-      <footer className="site-footer">
+      <footer className={`site-footer${communityFeed ? " site-footer--community" : ""}`}>
         <p>GERABRIEL Escola Profissional · Rede privada · Ambiente moderado</p>
         <p className="site-footer__sub">Comunicação respeitosa entre alunos, professores e escola</p>
         <CofinanciamentoBanner className="cofin-banner--in-footer" />

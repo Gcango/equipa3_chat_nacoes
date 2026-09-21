@@ -74,6 +74,10 @@ model User {
   reactions      Reaction[]
   reports        Report[]   @relation("Reporter")
   reviewedReports Report[]  @relation("Reviewer")
+  sentMessages     DirectMessage[] @relation("SentMessages")
+  receivedMessages DirectMessage[] @relation("ReceivedMessages")
+  notifications    Notification[]
+  groupMemberships GroupMember[]
 }
 
 model Post {
@@ -126,4 +130,66 @@ model Report {
   resolutionNote  String?
   createdAt       DateTime         @default(now())
   resolvedAt      DateTime?
+}
+
+model DirectMessage {
+  id          String    @id @default(uuid())
+  senderId    String
+  sender      User      @relation("SentMessages", fields: [senderId], references: [id])
+  recipientId String
+  recipient   User      @relation("ReceivedMessages", fields: [recipientId], references: [id])
+  content     String
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([senderId, recipientId])
+  @@index([recipientId, readAt])
+}
+
+model Notification {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  title     String
+  body      String
+  href      String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, readAt])
+}
+
+model CommunityGroup {
+  id          String        @id @default(uuid())
+  name        String
+  description String?
+  members     GroupMember[]
+}
+
+model GroupMember {
+  id       String         @id @default(uuid())
+  groupId  String
+  group    CommunityGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  joinedAt DateTime       @default(now())
+
+  @@unique([groupId, userId])
+}
+
+model SchoolEvent {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  location    String?
+  startsAt    DateTime
+}
+
+model ResourceLink {
+  id          String @id @default(uuid())
+  title       String
+  url         String
+  category    String
+  description String?
+  sortOrder   Int    @default(0)
 }

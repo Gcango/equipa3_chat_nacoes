@@ -1,58 +1,61 @@
 import { FormEvent, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import AppShell from "../components/AppShell";
+import CommunityLayout from "../components/CommunityLayout";
 import UserAvatar from "../components/UserAvatar";
 import { fetchMe, updateProfile, type User } from "../api";
+import { useAuthUser } from "../hooks/useAuthUser";
 
 export default function ProfilePage() {
-  const navigate = useNavigate();
-  const [user, setUser] = useState<User | null>(null);
+  const { user, displayUser, error, logout, summary } = useAuthUser();
   const [bio, setBio] = useState("");
   const [saved, setSaved] = useState(false);
-
-  function logout() {
-    localStorage.removeItem("token");
-    navigate("/login");
-  }
+  const [profile, setProfile] = useState<User | null>(null);
 
   useEffect(() => {
     fetchMe()
       .then((u) => {
-        setUser(u);
+        setProfile(u);
         setBio(u.bio ?? "");
       })
-      .catch(() => navigate("/login"));
-  }, [navigate]);
+      .catch(() => {});
+  }, []);
 
   async function onSave(e: FormEvent) {
     e.preventDefault();
     const updated = await updateProfile({ bio });
-    setUser(updated);
+    setProfile(updated);
+    localStorage.setItem("user", JSON.stringify(updated));
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   }
 
-  if (!user) return null;
+  const u = profile ?? displayUser;
+  if (!u) return null;
 
   return (
-    <AppShell user={user} onLogout={logout}>
-      <div className="page-narrow">
-      <div className="panel card">
+    <CommunityLayout
+      user={user}
+      displayUser={displayUser}
+      onLogout={logout}
+      summary={summary}
+      error={error}
+      showWidgets={false}
+    >
+      <section className="cn-page cn-glass">
         <div className="composer__head page-section-head">
-          <UserAvatar name={user.name} size="lg" />
+          <UserAvatar name={u.name} size="lg" />
           <div>
-            <h2 className="page-section-head__title">O meu perfil</h2>
-            <p className="composer__hint">Informação visível na comunidade escolar</p>
+            <h2 className="cn-page__title">Definições · Perfil</h2>
+            <p className="cn-page__lead">Informação visível na comunidade escolar</p>
           </div>
         </div>
         <dl className="profile-dl">
           <dt>Nome</dt>
-          <dd>{user.name}</dd>
+          <dd>{u.name}</dd>
           <dt>Email</dt>
-          <dd>{user.email}</dd>
+          <dd>{u.email}</dd>
           <dt>Curso / Turma</dt>
           <dd>
-            {user.course} · {user.classGroup}
+            {u.course} · {u.classGroup}
           </dd>
           <dt>Estado</dt>
           <dd>
@@ -61,7 +64,7 @@ export default function ProfilePage() {
               PENDENTE: "Pendente",
               SUSPENSO: "Suspensa",
               BLOQUEADO: "Bloqueada",
-            }[user.status] ?? user.status}
+            }[u.status] ?? u.status}
           </dd>
         </dl>
         <form onSubmit={onSave} className="form">
@@ -69,13 +72,12 @@ export default function ProfilePage() {
             Bio
             <textarea value={bio} onChange={(e) => setBio(e.target.value)} maxLength={500} rows={4} />
           </label>
-          <button type="submit" className="btn btn--primary">
+          <button type="submit" className="cn-btn cn-btn--primary">
             Guardar
           </button>
           {saved && <span className="form-success"> Perfil actualizado.</span>}
         </form>
-      </div>
-      </div>
-    </AppShell>
+      </section>
+    </CommunityLayout>
   );
 }

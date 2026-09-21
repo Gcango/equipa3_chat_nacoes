@@ -7,6 +7,7 @@ import { usersRouter } from "./routes/users.js";
 import { postsRouter } from "./routes/posts.js";
 import { reportsRouter } from "./routes/reports.js";
 import { adminRouter } from "./routes/admin.js";
+import { communityRouter } from "./routes/community.js";
 
 const app = express();
 
@@ -28,6 +29,7 @@ app.use("/users", usersRouter);
 app.use("/posts", postsRouter);
 app.use("/reports", reportsRouter);
 app.use("/admin", adminRouter);
+app.use("/community", communityRouter);
 
 app.use((_req, res) => {
   res.status(404).json({ error: "Rota não encontrada." });

@@ -1,5 +1,6 @@
 import { FormEvent, useState } from "react";
 import type { Comment, Post } from "../api";
+import { IcComment, IcHeart, IcMore, IcShare } from "./CommunityIcons";
 import UserAvatar from "./UserAvatar";
 
 const TYPE_LABEL: Record<string, string> = {
@@ -11,25 +12,31 @@ const TYPE_LABEL: Record<string, string> = {
 
 type Props = {
   post: Post;
+  variant?: "default" | "community";
   onReport: (id: string) => void;
   onLike: (id: string) => Promise<void>;
   onLoadComments: (id: string) => Promise<Comment[]>;
   onAddComment: (postId: string, content: string) => Promise<unknown>;
+  onShare?: (postId: string) => void;
 };
 
 export default function PostCard({
   post,
+  variant = "default",
   onReport,
   onLike,
   onLoadComments,
   onAddComment,
+  onShare,
 }: Props) {
+  const isCommunity = variant === "community";
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentDraft, setCommentDraft] = useState("");
   const [loadingComments, setLoadingComments] = useState(false);
   const [submittingComment, setSubmittingComment] = useState(false);
   const [liking, setLiking] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const when = new Date(post.createdAt).toLocaleString("pt-PT", {
     day: "2-digit",
@@ -80,9 +87,19 @@ export default function PostCard({
     }
   }
 
+  const relativeWhen = new Date(post.createdAt).toLocaleString("pt-PT", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
   return (
-    <article className="post-card">
-      <header className="post-card__head">
+    <article
+      className={`post-card${isCommunity ? " post-card--cn cn-glass" : ""}`}
+      id={`post-${post.id}`}
+    >
+      <header className={`post-card__head${isCommunity ? " post-card__head--cn" : ""}`}>
         <UserAvatar name={post.author.name} size="md" />
         <div className="post-card__meta">
           <div className="post-card__author-row">
@@ -92,15 +109,95 @@ export default function PostCard({
             )}
           </div>
           <span className="post-card__sub">
-            {post.author.course}
-            {post.author.classGroup ? ` · ${post.author.classGroup}` : ""} · {when}
+            {isCommunity ? (
+              <>
+                {relativeWhen}
+                {post.author.course && (
+                  <>
+                    {" · "}
+                    <span className="post-card__tag">{post.author.course}</span>
+                  </>
+                )}
+                <span className="post-card__privacy" title="Comunidade escolar">
+                  {" · 🌐"}
+                </span>
+              </>
+            ) : (
+              <>
+                {post.author.course}
+                {post.author.classGroup ? ` · ${post.author.classGroup}` : ""} · {when}
+              </>
+            )}
           </span>
         </div>
+        {isCommunity && (
+          <div className="post-card__menu">
+            <button
+              type="button"
+              className="post-card__menu-btn"
+              aria-label="Opções"
+              onClick={() => setMenuOpen((o) => !o)}
+            >
+              <IcMore />
+            </button>
+            {menuOpen && (
+              <>
+                <button type="button" className="post-card__menu-backdrop" onClick={() => setMenuOpen(false)} aria-label="Fechar" />
+                <div className="post-card__menu-pop">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onReport(post.id);
+                    }}
+                  >
+                    Denunciar publicação
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </header>
-      <div className="post-card__body">
-        <p>{post.content}</p>
-      </div>
-      <footer className="post-card__actions">
+      {isCommunity ? (
+        <>
+          <div className="post-card__text-cn">
+            <p>{post.content}</p>
+          </div>
+          <div className="post-card__media-cn" aria-hidden>
+            <div className="post-card__media-cn__inner">
+              <span>Comunidade Digital Escolar</span>
+            </div>
+          </div>
+        </>
+      ) : (
+        <div className="post-card__body">
+          <p>{post.content}</p>
+        </div>
+      )}
+
+      {isCommunity && (
+        <div className="post-card__stats-cn">
+          <span className="post-card__stats-cn__reactions">
+            {(post._count?.reactions ?? 0) > 0 ? (
+              <>
+                <span aria-hidden>❤️</span>
+                <span aria-hidden>👍</span>
+                {post._count?.reactions}
+              </>
+            ) : (
+              <span className="post-card__stats-cn__muted">Sê o primeiro a reagir</span>
+            )}
+          </span>
+          <span className="post-card__stats-cn__comments">
+            {(post._count?.comments ?? 0) > 0
+              ? `${post._count?.comments} comentários`
+              : "0 comentários"}
+          </span>
+        </div>
+      )}
+
+      <footer className={`post-card__actions${isCommunity ? " post-card__actions--cn" : ""}`}>
         <button
           type="button"
           className={`action-btn${post.likedByMe ? " action-btn--active" : ""}`}
@@ -108,10 +205,8 @@ export default function PostCard({
           disabled={liking}
           aria-pressed={post.likedByMe}
         >
-          <span className="action-btn__icon" aria-hidden>
-            👍
-          </span>
-          Gostar · {post._count?.reactions ?? 0}
+          {isCommunity ? <IcHeart /> : <span className="action-btn__icon" aria-hidden>👍</span>}
+          Gosto{!isCommunity ? ` · ${post._count?.reactions ?? 0}` : ""}
         </button>
         <button
           type="button"
@@ -120,18 +215,19 @@ export default function PostCard({
           disabled={loadingComments}
           aria-expanded={commentsOpen}
         >
-          <span className="action-btn__icon" aria-hidden>
-            💬
-          </span>
-          {loadingComments ? "A carregar…" : `Comentar · ${post._count?.comments ?? 0}`}
+          {isCommunity ? <IcComment /> : <span className="action-btn__icon" aria-hidden>💬</span>}
+          {loadingComments ? "A carregar…" : isCommunity ? "Comentar" : `Comentar · ${post._count?.comments ?? 0}`}
         </button>
-        <button
-          type="button"
-          className="action-btn action-btn--muted"
-          onClick={() => onReport(post.id)}
-        >
-          Denunciar
-        </button>
+        {isCommunity ? (
+          <button type="button" className="action-btn" onClick={() => onShare?.(post.id)}>
+            <IcShare />
+            Partilhar
+          </button>
+        ) : (
+          <button type="button" className="action-btn action-btn--muted" onClick={() => onReport(post.id)}>
+            Denunciar
+          </button>
+        )}
       </footer>
 
       {commentsOpen && (

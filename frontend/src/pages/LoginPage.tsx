@@ -12,7 +12,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (localStorage.getItem("token")) navigate("/", { replace: true });
+    if (localStorage.getItem("token")) navigate("/feed", { replace: true });
   }, [navigate]);
 
   async function onSubmit(e: FormEvent) {
@@ -23,7 +23,7 @@ export default function LoginPage() {
       const { token, user } = await login(email.trim().toLowerCase(), password);
       localStorage.setItem("token", token);
       localStorage.setItem("user", JSON.stringify(user));
-      navigate("/");
+      navigate("/feed");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao entrar.");
     } finally {
