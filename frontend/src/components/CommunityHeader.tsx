@@ -30,7 +30,7 @@ export default function CommunityHeader({ user, onLogout, summary }: Props) {
     <header className="cn-header">
       <div className="cn-header__inner">
         <Link to="/feed" className="cn-header__brand">
-          <LogoBrand variant="topbar" compact />
+          <LogoBrand variant="topbar" compact onDark />
         </Link>
 
         <div className="cn-header__actions">

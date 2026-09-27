@@ -13,7 +13,7 @@ export default function ForgotPasswordHelpPage() {
     <div className="login-gate">
       <div className="login-gate__inner login-gate__inner--wide">
         <div className="login-gate__brand">
-          <LogoBrand variant="topbar" compact />
+          <LogoBrand variant="topbar" compact onDark />
         </div>
         <div className="auth-card auth-card--elevated login-gate__card auth-help">
           <p className="auth-help__obs">OBS.</p>

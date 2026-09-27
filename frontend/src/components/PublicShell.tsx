@@ -13,7 +13,7 @@ export default function PublicShell({ children }: Props) {
       <header className="site-top">
         <div className="site-top__inner">
           <Link to="/login" className="site-top__brand">
-            <LogoBrand variant="topbar" compact />
+            <LogoBrand variant="topbar" compact onDark />
           </Link>
           <div className="site-top__actions">
             <span className="site-top__access-note">Acesso reservado à comunidade escolar</span>

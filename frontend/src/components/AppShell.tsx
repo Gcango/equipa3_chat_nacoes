@@ -44,7 +44,7 @@ export default function AppShell({
       <header className="site-top">
         <div className="site-top__inner">
           <Link to="/" className="site-top__brand">
-            <LogoBrand variant="topbar" compact />
+            <LogoBrand variant="topbar" compact onDark />
           </Link>
           {user && (
             <div className="site-top__actions">

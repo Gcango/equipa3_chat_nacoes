@@ -6,7 +6,7 @@ Figma ou implementação direta em React (`frontend/`) com o mesmo layout.
 
 ## Ecrãs previstos
 
-1. **Login** — logo GERABRIEL, e-mail escolar + palavra-passe, OBS. + link ajuda palavra-passe (sem registo público)
+1. **Login** — layout split-screen (painel GERABRIEL + formulário «Bem-vindo à Comunidade Gerabriel»), implementado em `LoginPage.tsx` / `.login-split`
 2. **Ajuda palavra-passe** — passos para secretaria/direção
 3. **Admin — criar conta** — nome, email `@epgerabriel.edu.pt`, nº aluno, curso, turma, password
 4. **Feed** — lista de posts, botão publicar, menu perfil/sair
@@ -29,6 +29,12 @@ Figma ou implementação direta em React (`frontend/`) com o mesmo layout.
 │  OBS. · Esqueceste-te da pass?      │
 └─────────────────────────────────────┘
 ```
+
+## Identidade visual
+
+- Logotipo oficial: `frontend/public/logo-gerabriel.png` (792×348, RGBA)
+- Componente reutilizável: `frontend/src/components/LogoBrand.tsx`
+- Cores de marca (CSS `:root`): azul `#004aad` / `#0073cf`, laranja `#f8941c`
 
 ## Links / imagens
 

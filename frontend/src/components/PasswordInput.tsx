@@ -8,6 +8,7 @@ type Props = {
   required?: boolean;
   minLength?: number;
   autoComplete?: string;
+  variant?: "default" | "login";
 };
 
 export default function PasswordInput({
@@ -18,11 +19,29 @@ export default function PasswordInput({
   required,
   minLength,
   autoComplete = "current-password",
+  variant = "default",
 }: Props) {
   const [visible, setVisible] = useState(false);
+  const isLogin = variant === "login";
+  const wrapperClass = isLogin
+    ? "login-field login-field--password password-field"
+    : "password-field";
 
   return (
-    <div className="password-field">
+    <div className={wrapperClass}>
+      {isLogin && (
+        <span className="login-field__icon" aria-hidden>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <path
+              d="M7 11V8a5 5 0 0110 0v3M6 11h12v9H6v-9z"
+              stroke="currentColor"
+              strokeWidth="1.75"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </span>
+      )}
       <input
         id={id}
         type={visible ? "text" : "password"}

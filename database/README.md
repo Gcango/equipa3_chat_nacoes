@@ -7,6 +7,7 @@
 cd backend
 cp .env.example .env
 npm install
-npx prisma migrate dev
-npm run db:seed
+npm run db:setup
 ```
+
+Ficheiro SQLite (dev): `backend/prisma/dev.db` (caminho relativo ao schema Prisma).

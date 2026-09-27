@@ -1,11 +1,40 @@
+import "dotenv/config";
 import bcrypt from "bcryptjs";
 import { PrismaClient } from "@prisma/client";
+
+if (!process.env.DATABASE_URL) {
+  console.error(
+    "DATABASE_URL em falta. Copie backend/.env.example para backend/.env e volte a correr npm run db:seed.",
+  );
+  process.exit(1);
+}
 
 const prisma = new PrismaClient();
 
 async function main() {
+  const direcaoHash = await bcrypt.hash("direcao2026", 10);
   const adminHash = await bcrypt.hash("Admin123!", 10);
   const alunoHash = await bcrypt.hash("Aluno123!", 10);
+
+  const direcao = await prisma.user.upsert({
+    where: { email: "direcao@epgerabriel.edu.pt" },
+    update: {
+      passwordHash: direcaoHash,
+      role: "ADMIN",
+      status: "ATIVO",
+      name: "Direção GERABRIEL",
+    },
+    create: {
+      name: "Direção GERABRIEL",
+      email: "direcao@epgerabriel.edu.pt",
+      studentNumber: "DIR001",
+      course: "Direção",
+      classGroup: "—",
+      passwordHash: direcaoHash,
+      role: "ADMIN",
+      status: "ATIVO",
+    },
+  });
 
   const admin = await prisma.user.upsert({
     where: { email: "admin.demo@epgerabriel.edu.pt" },
@@ -281,7 +310,8 @@ async function main() {
     });
   }
 
-  console.log("Seed concluído (contas demo @epgerabriel.edu.pt).");
+  console.log("Seed concluído (contas @epgerabriel.edu.pt).");
+  console.log("Conta principal admin:", direcao.email);
 }
 
 main()

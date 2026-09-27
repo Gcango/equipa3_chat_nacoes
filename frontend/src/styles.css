@@ -1,10 +1,13 @@
 :root {
-  --color-primary: #00aeef;
-  --color-primary-hover: #0090c9;
-  --color-primary-soft: #e6f7fd;
-  --color-nav: #0077b6;
-  --color-nav-dark: #005f92;
-  --color-nav-glow: #00aeef;
+  /* Identidade GERABRIEL — azul institucional + laranja sol/livro */
+  --color-primary: #0073cf;
+  --color-primary-hover: #004aad;
+  --color-primary-soft: #e8f2fc;
+  --color-accent: #f8941c;
+  --color-accent-soft: #fff4e6;
+  --color-nav: #004aad;
+  --color-nav-dark: #003580;
+  --color-nav-glow: #f8941c;
   --color-header-bg: #08090d;
   --color-header-bg-end: #121820;
   --color-nav-text: #ffffff;
@@ -59,7 +62,7 @@ a:hover {
   display: flex;
   flex-direction: column;
   background:
-    radial-gradient(ellipse 120% 80% at 50% -20%, rgba(0, 174, 239, 0.08), transparent 55%),
+    radial-gradient(ellipse 120% 80% at 50% -20%, rgba(0, 115, 207, 0.07), transparent 55%),
     var(--color-bg);
 }
 
@@ -72,7 +75,7 @@ a:hover {
 
 .site-top {
   background: linear-gradient(180deg, var(--color-header-bg) 0%, var(--color-header-bg-end) 100%);
-  border-bottom: 1px solid rgba(0, 174, 239, 0.25);
+  border-bottom: 1px solid rgba(248, 148, 28, 0.35);
 }
 
 .site-top__inner {
@@ -115,7 +118,7 @@ a:hover {
   border-left: 3px solid var(--color-nav-glow);
   padding-left: 1rem;
   gap: 0.2rem;
-  box-shadow: -1px 0 12px rgba(0, 174, 239, 0.15);
+  box-shadow: -1px 0 12px rgba(248, 148, 28, 0.12);
 }
 
 @media (min-width: 640px) {
@@ -372,7 +375,7 @@ a:hover {
   border-top: 1px solid var(--color-border);
 }
 
-/* ——— Logo oficial (fundo escuro integrado no cabeçalho) ——— */
+/* ——— Logotipo oficial Escola Profissional GERABRIEL ——— */
 .logo-brand {
   text-align: center;
   line-height: 0;
@@ -385,19 +388,31 @@ a:hover {
   object-fit: contain;
 }
 
+.logo-brand--on-dark .logo-brand__img {
+  background: #ffffff;
+  border-radius: var(--radius-sm);
+  padding: 0.4rem 0.75rem;
+  box-shadow: 0 2px 14px rgba(0, 0, 0, 0.22);
+  filter: none;
+}
+
 .logo-brand--topbar.logo-brand--compact .logo-brand__img,
 .logo-brand--header.logo-brand--compact .logo-brand__img {
-  height: 72px;
+  height: clamp(56px, 10vw, 88px);
   width: auto;
-  max-width: 260px;
-  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.45)) drop-shadow(0 0 16px rgba(0, 174, 239, 0.4));
+  max-width: min(380px, 72vw);
+}
+
+.logo-brand--topbar.logo-brand--compact:not(.logo-brand--on-dark) .logo-brand__img,
+.logo-brand--header.logo-brand--compact:not(.logo-brand--on-dark) .logo-brand__img {
+  filter: drop-shadow(0 2px 10px rgba(0, 74, 173, 0.12));
 }
 
 @media (min-width: 768px) {
   .logo-brand--topbar.logo-brand--compact .logo-brand__img,
   .logo-brand--header.logo-brand--compact .logo-brand__img {
-    height: 96px;
-    max-width: 320px;
+    height: clamp(72px, 7vw, 96px);
+    max-width: min(420px, 42vw);
   }
 }
 
@@ -754,59 +769,683 @@ a:hover {
   font-size: 0.9rem;
 }
 
-/* ——— Porta de login (sem layout do site) ——— */
+/* ——— Login (referência Comunidade Gerabriel) ——— */
+.login-split {
+  --login-navy: #0a1f44;
+  --login-blue: #0070d2;
+  --login-blue-hover: #005eb8;
+  --login-orange: #f58220;
+  --login-panel: #ffffff;
+  --login-ink: #0a1f44;
+  --login-muted: #5c6678;
+  --brand-scale: 1.14;
+  --brand-logo-scale: 1.22;
+  --logo-scale: 1.2;
+  --main-scale: 1.12;
+  --login-brand-width: 36.5%;
+  --login-diagonal-skew: -11deg;
+  position: relative;
+  height: 100dvh;
+  overflow: hidden;
+  /* Navy nos intervalos do split — evita franjas brancas junto ao painel */
+  background: var(--login-navy);
+  font-family: var(--font);
+}
+
+.login-split__diagonal-ticker {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: var(--login-brand-width);
+  height: 100dvh;
+  clip-path: polygon(100% 0, 100% 100%, 76.5% 100%);
+  z-index: 5;
+  pointer-events: none;
+  overflow: hidden;
+  box-sizing: border-box;
+  background: linear-gradient(
+    118deg,
+    var(--login-navy) 0%,
+    rgba(10, 31, 68, 0.75) 14%,
+    rgba(255, 255, 255, 0.92) 52%,
+    rgba(255, 255, 255, 1) 100%
+  );
+}
+
+.login-split__diagonal-ticker-skew {
+  position: absolute;
+  top: -8%;
+  right: -18%;
+  width: 165%;
+  height: 116%;
+  transform: skewX(var(--login-diagonal-skew));
+  transform-origin: 100% 0;
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  align-items: stretch;
+  gap: clamp(0.35rem, 1.2vw, 0.85rem);
+  padding-right: 4%;
+  overflow: hidden;
+  mask-image: linear-gradient(180deg, transparent 0%, #000 5%, #000 95%, transparent 100%);
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 5%, #000 95%, transparent 100%);
+}
+
+.login-split__diagonal-ticker-lane {
+  overflow: hidden;
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 32%;
+  display: flex;
+  justify-content: center;
+}
+
+.login-split__diagonal-ticker-track {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  width: max-content;
+  animation: login-study-ticker-diagonal 42s linear infinite;
+  will-change: transform;
+}
+
+.login-split__diagonal-ticker-run {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  padding-bottom: 1.5rem;
+}
+
+.login-split__diagonal-ticker-item {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  transform: rotate(180deg);
+  font-size: clamp(0.5625rem, 0.78vw, 0.6875rem);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(10, 31, 68, 0.4);
+  white-space: nowrap;
+  padding: 0.85rem 0;
+}
+
+.login-split__diagonal-ticker-item::after {
+  content: "";
+  display: block;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--login-orange);
+  margin: 0.55rem auto 0;
+  opacity: 0.9;
+}
+
+@keyframes login-study-ticker-diagonal {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-50%);
+  }
+}
+
+.login-split__diagonal-ticker-lane:nth-child(2) .login-split__diagonal-ticker-track {
+  animation-duration: 46s;
+  animation-delay: -12s;
+}
+
+.login-split__diagonal-ticker-lane:nth-child(3) .login-split__diagonal-ticker-track {
+  animation-duration: 32s;
+  animation-delay: -22s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-split__diagonal-ticker-track {
+    animation: none;
+  }
+}
+
+.login-split::after {
+  content: "";
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--login-brand-width) - 1px);
+  width: 3px;
+  background: var(--login-orange);
+  transform: skewX(var(--login-diagonal-skew));
+  z-index: 6;
+  pointer-events: none;
+  box-shadow: 0 0 14px rgba(245, 130, 32, 0.35);
+}
+
+.login-split__brand {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: var(--login-brand-width);
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--login-navy);
+  color: #fff;
+  clip-path: polygon(0 0, 100% 0, 76.5% 100%, 0 100%);
+  padding: calc(2.5rem * var(--brand-scale)) calc(2rem * var(--brand-scale)) calc(2rem * var(--brand-scale))
+    calc(2.75rem * var(--brand-scale));
+  z-index: 4;
+  box-sizing: border-box;
+}
+
+.login-split__brand-rings {
+  position: absolute;
+  left: -90px;
+  bottom: -90px;
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  pointer-events: none;
+}
+
+.login-split__brand-rings::before,
+.login-split__brand-rings::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.login-split__brand-rings::before {
+  inset: 36px;
+}
+
+.login-split__brand-rings::after {
+  inset: 72px;
+}
+
+.login-split__brand-inner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  height: 100%;
+  max-height: 100dvh;
+  max-width: calc(360px * var(--brand-scale));
+  width: 100%;
+  margin-inline: auto;
+  overflow: hidden;
+}
+
+.login-split__logo {
+  align-self: center;
+  margin: 0 0 calc(1.75rem * var(--brand-scale));
+  width: min(100%, calc(292px * var(--brand-logo-scale) * var(--logo-scale)));
+  display: flex;
+  justify-content: center;
+}
+
+.login-split__logo .logo-brand {
+  width: 100%;
+  text-align: center;
+}
+
+.login-split__logo .logo-brand--login-panel .logo-brand__img {
+  display: block;
+  width: 100% !important;
+  height: auto !important;
+  max-width: 100% !important;
+  background: transparent !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  filter: none;
+  image-rendering: auto;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+.login-split__headline {
+  margin: 0 0 calc(0.75rem * var(--brand-scale));
+  font-size: calc(1.875rem * var(--brand-scale));
+  font-weight: 700;
+  line-height: 1.32;
+  letter-spacing: -0.02em;
+  max-width: 14ch;
+}
+
+.login-split__accent {
+  color: var(--login-orange);
+  font-weight: 700;
+}
+
+.login-split__intro {
+  margin: 0;
+  font-size: calc(0.875rem * var(--brand-scale));
+  line-height: 1.62;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.9);
+  max-width: 38ch;
+}
+
+.login-split__features {
+  list-style: none;
+  margin: calc(2.25rem * var(--brand-scale)) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(1.375rem * var(--brand-scale));
+}
+
+.login-split__feature {
+  display: flex;
+  align-items: flex-start;
+  gap: calc(0.875rem * var(--brand-scale));
+}
+
+.login-split__feature-copy {
+  padding-top: 0.125rem;
+}
+
+.login-split__feature strong {
+  display: block;
+  font-size: calc(0.9375rem * var(--brand-scale));
+  font-weight: 700;
+  margin-bottom: calc(0.125rem * var(--brand-scale));
+}
+
+.login-split__feature-text {
+  display: block;
+  font-size: calc(0.75rem * var(--brand-scale));
+  line-height: 1.45;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.login-split__feature-icon {
+  flex-shrink: 0;
+  width: calc(44px * var(--brand-scale));
+  height: calc(44px * var(--brand-scale));
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 108, 229, 0.55);
+  color: #fff;
+}
+
+.login-split__feature-icon svg {
+  width: calc(20px * var(--brand-scale));
+  height: calc(20px * var(--brand-scale));
+}
+
+.login-split__brand-footer {
+  margin-top: auto;
+  padding-top: calc(2rem * var(--brand-scale));
+  font-size: calc(0.625rem * var(--brand-scale));
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.login-split__main {
+  position: relative;
+  z-index: 1;
+  margin-left: var(--login-brand-width);
+  width: calc(100% - var(--login-brand-width));
+  box-sizing: border-box;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  height: 100dvh;
+  max-height: 100dvh;
+  padding: calc(1.75rem * var(--main-scale)) calc(3.5rem * var(--main-scale)) calc(1.5rem * var(--main-scale))
+    calc(2.25rem * var(--main-scale));
+  overflow-x: hidden;
+  overflow-y: auto;
+  background:
+    radial-gradient(ellipse 85% 55% at 92% 8%, rgba(0, 112, 210, 0.07), transparent 58%),
+    radial-gradient(ellipse 50% 45% at 8% 92%, rgba(245, 130, 32, 0.06), transparent 52%),
+    var(--login-panel);
+}
+
+.login-split__main::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.35;
+  background: repeating-linear-gradient(
+    -11deg,
+    transparent,
+    transparent 48px,
+    rgba(0, 112, 210, 0.03) 48px,
+    rgba(0, 112, 210, 0.03) 49px
+  );
+}
+
+.login-split__main-rings {
+  position: absolute;
+  top: -56px;
+  right: -20px;
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 108, 229, 0.12);
+  pointer-events: none;
+}
+
+.login-split__main-rings::before {
+  content: "";
+  position: absolute;
+  top: 28px;
+  right: 36px;
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  border: 2px solid rgba(243, 139, 28, 0.14);
+}
+
+.login-split__secure {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.login-split__secure-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 108, 229, 0.1);
+  color: var(--login-blue);
+}
+
+.login-split__secure-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.login-split__secure-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: calc(0.8125rem * var(--main-scale));
+  font-weight: 600;
+  color: var(--login-ink);
+}
+
+.login-split__secure-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #22c55e;
+}
+
+.login-split__secure-sub {
+  font-size: calc(0.6875rem * var(--main-scale));
+  font-weight: 500;
+  color: var(--login-blue);
+}
+
+.login-split__body {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(0.75rem * var(--main-scale)) 0 calc(1.25rem * var(--main-scale));
+}
+
+.login-split__content {
+  width: 100%;
+  max-width: calc(460px * var(--main-scale));
+}
+
+.login-split__intro-block {
+  margin-bottom: calc(0.75rem * var(--main-scale));
+}
+
+.login-split__eyebrow {
+  margin: 0;
+  font-size: calc(0.6875rem * var(--main-scale));
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--login-blue);
+}
+
+.login-split__eyebrow-school {
+  display: inline-block;
+  padding-bottom: 0.15rem;
+  border-bottom: 2px solid var(--login-orange);
+}
+
+.login-split__eyebrow-line {
+  display: block;
+  width: calc(2.5rem * var(--main-scale));
+  height: 3px;
+  margin-top: calc(0.5rem * var(--main-scale));
+  border-radius: 2px;
+  background: var(--login-orange);
+}
+
+.login-split__welcome {
+  margin: 0 0 calc(0.625rem * var(--main-scale));
+  font-size: calc(2.125rem * var(--main-scale));
+  font-weight: 700;
+  letter-spacing: -0.032em;
+  color: var(--login-ink);
+  line-height: 1.18;
+}
+
+.login-split__welcome-brand {
+  color: var(--login-blue);
+  font-weight: 700;
+}
+
+.login-split__subtitle {
+  margin: 0 0 calc(1.625rem * var(--main-scale));
+  font-size: calc(0.9375rem * var(--main-scale));
+  font-weight: 400;
+  color: var(--login-muted);
+  line-height: 1.55;
+  max-width: 44ch;
+}
+
+.login-split__form {
+  display: flex;
+  flex-direction: column;
+  gap: calc(1.35rem * var(--main-scale));
+}
+
+.login-split__label {
+  display: flex;
+  flex-direction: column;
+  gap: calc(0.4375rem * var(--main-scale));
+  font-size: calc(0.875rem * var(--main-scale));
+  font-weight: 700;
+  color: #2d3748;
+}
+
+.login-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.login-field__icon {
+  position: absolute;
+  left: 0.875rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #9ca3af;
+  pointer-events: none;
+  display: flex;
+}
+
+.login-field input {
+  width: 100%;
+  height: calc(50px * var(--main-scale));
+  padding: 0 calc(0.875rem * var(--main-scale)) 0 calc(2.5rem * var(--main-scale));
+  font-size: calc(0.875rem * var(--main-scale));
+  font-weight: 400;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  border-radius: calc(8px * var(--main-scale));
+  background: rgba(248, 250, 252, 0.85);
+  color: var(--login-ink);
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.login-field input::placeholder {
+  color: #9ca3af;
+}
+
+.login-field input:focus {
+  outline: none;
+  border-color: var(--login-blue);
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(0, 112, 210, 0.1);
+}
+
+.login-field--password input {
+  padding-right: 2.75rem;
+}
+
+.login-field--password .password-field__toggle {
+  right: 0.5rem;
+  color: #9ca3af;
+}
+
+.login-split__error {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--color-error);
+}
+
+.login-split__submit {
+  margin-top: calc(0.25rem * var(--main-scale));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(0.4375rem * var(--main-scale));
+  width: 100%;
+  height: calc(50px * var(--main-scale));
+  font-size: calc(0.9375rem * var(--main-scale));
+  font-weight: 600;
+  color: #fff;
+  background: var(--login-blue);
+  border: none;
+  border-radius: calc(8px * var(--main-scale));
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(0, 112, 210, 0.22);
+}
+
+.login-split__submit:hover:not(:disabled) {
+  background: var(--login-blue-hover);
+}
+
+.login-split__submit:disabled {
+  opacity: 0.75;
+  cursor: wait;
+}
+
+.login-split__submit-arrow {
+  font-size: calc(1.125rem * var(--main-scale));
+  line-height: 1;
+  font-weight: 400;
+}
+
+.login-split__forgot {
+  display: block;
+  margin-top: calc(1.15rem * var(--main-scale));
+  text-align: center;
+  font-size: calc(0.875rem * var(--main-scale));
+  font-weight: 600;
+  color: var(--login-blue);
+  text-decoration: none;
+}
+
+.login-split__forgot:hover {
+  text-decoration: underline;
+}
+
+.login-split__main-footer {
+  display: flex;
+  justify-content: center;
+  padding-bottom: 0.25rem;
+}
+
+.login-split__note {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  font-size: calc(0.8125rem * var(--main-scale));
+  color: #94a3b8;
+}
+
+.login-split__note svg {
+  flex-shrink: 0;
+}
+
+@media (max-width: 1024px) {
+  .login-split {
+    --brand-scale: 1.06;
+    --brand-logo-scale: 1.12;
+    --logo-scale: 1.12;
+    --main-scale: 1;
+    height: auto;
+    overflow: visible;
+  }
+
+  .login-split::after,
+  .login-split__diagonal-ticker {
+    display: none;
+  }
+
+  .login-split__brand {
+    position: relative;
+    width: 100%;
+    height: auto;
+    clip-path: none;
+    padding: 2rem 1.5rem;
+  }
+
+  .login-split__brand-inner {
+    height: auto;
+    max-height: none;
+    max-width: none;
+  }
+
+  .login-split__main {
+    margin-left: 0;
+    width: 100%;
+    height: auto;
+    max-height: none;
+    padding: 1.25rem 1.25rem 1rem;
+  }
+
+  .login-split__welcome {
+    font-size: 1.625rem;
+  }
+}
+
+/* Legado — páginas que ainda usem login-gate */
 .login-gate {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 1.5rem 1.25rem;
-  background: linear-gradient(165deg, #08090d 0%, #121820 45%, #0a1628 100%);
-}
-
-.login-gate__inner {
-  width: 100%;
-  max-width: 480px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1.75rem;
-}
-
-.login-gate__brand {
-  display: flex;
-  justify-content: center;
-}
-
-/* Logótipo oficial completo — escala uniforme ligeira (desenho original intacto) */
-.login-gate__brand .logo-brand {
-  transform: scale(1.12);
-  transform-origin: center center;
-}
-
-.login-gate__brand .logo-brand__img {
-  height: 90px !important;
-  max-width: 320px !important;
-  filter: drop-shadow(0 4px 24px rgba(0, 174, 239, 0.35));
-}
-
-@media (min-width: 768px) {
-  .login-gate__brand .logo-brand__img {
-    height: 112px !important;
-    max-width: 370px !important;
-  }
-}
-
-.login-gate__card {
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
-}
-
-.login-gate__legal {
-  margin: 0;
-  font-size: 0.75rem;
-  color: rgba(226, 232, 240, 0.45);
-  text-align: center;
-  letter-spacing: 0.04em;
+  background: var(--login-panel-bg, #f4f7fb);
 }
 
 /* ——— Auth (cartão sobre hero) ——— */
@@ -1467,7 +2106,7 @@ textarea:focus {
 .cn-header__inner {
   max-width: 1480px;
   margin: 0 auto;
-  padding: 0.65rem 1rem;
+  padding: 0.75rem 1.15rem;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -1488,15 +2127,14 @@ textarea:focus {
 }
 
 .cn-header__brand .logo-brand--topbar.logo-brand--compact .logo-brand__img {
-  height: 56px !important;
-  max-width: 148px !important;
-  filter: drop-shadow(0 0 12px rgba(0, 174, 239, 0.35));
+  height: clamp(52px, 9vw, 76px) !important;
+  max-width: min(340px, 62vw) !important;
 }
 
 @media (min-width: 768px) {
   .cn-header__brand .logo-brand--topbar.logo-brand--compact .logo-brand__img {
-    height: 64px !important;
-    max-width: 168px !important;
+    height: clamp(64px, 6vw, 84px) !important;
+    max-width: min(380px, 38vw) !important;
   }
 }
 
@@ -1535,7 +2173,7 @@ textarea:focus {
 }
 
 .cn-header__icon--active {
-  background: #00aeef;
+  background: var(--color-primary);
   color: #041018;
 }
 
@@ -2007,8 +2645,8 @@ textarea:focus {
   --cn-border: rgba(255, 255, 255, 0.08);
   --cn-text: #e8edf4;
   --cn-muted: #94a3b8;
-  --cn-accent: #00aeef;
-  --cn-accent-dim: rgba(0, 174, 239, 0.15);
+  --cn-accent: #0073cf;
+  --cn-accent-dim: rgba(0, 115, 207, 0.15);
   margin: 0 -1rem 0;
   padding: 1.25rem 0.75rem 2rem;
   background:

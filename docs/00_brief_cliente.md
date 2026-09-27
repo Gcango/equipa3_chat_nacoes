@@ -1,5 +1,10 @@
 # Briefing do Cliente — Chat_Nações — Comunidade Digital Escolar
 
+**Projeto integrador · Equipa Gabriel e Sense**
+
+Enunciado completo: [`00_enunciado_projeto_integrador.md`](./00_enunciado_projeto_integrador.md)  
+Mapa de entregáveis (1–13): [`00_mapa_entregaveis.md`](./00_mapa_entregaveis.md)
+
 ## Problema
 Rede social privada da escola com publicações, comentários, reações, denúncias e moderação.
 
