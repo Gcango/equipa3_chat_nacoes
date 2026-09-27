@@ -22,7 +22,7 @@ export default function LogoBrand({
   loginPanel = false,
   showTagline,
 }: Props) {
-  const height = loginPanel ? 132 : compact ? 72 : 120;
+  const height = loginPanel ? 148 : compact ? 72 : 120;
   const width = Math.round(height * LOGO_GERABRIEL_ASPECT);
   const taglineVisible = loginPanel ? false : showTagline ?? !compact;
 

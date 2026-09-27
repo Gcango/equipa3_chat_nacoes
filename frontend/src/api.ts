@@ -170,6 +170,7 @@ export type ResourceLink = {
   url: string;
   category: string;
   description: string | null;
+  sortOrder?: number;
 };
 
 export type DirectoryUser = {
@@ -385,5 +386,137 @@ export async function setUserStatus(id: string, status: string) {
       headers: authHeaders(),
       body: JSON.stringify({ status }),
     }),
+  );
+}
+
+export type CourseScheduleEntry = {
+  id: string;
+  courseId: string;
+  weekday: number;
+  startTime: string;
+  endTime: string;
+  room?: string | null;
+  label: string;
+  sortOrder: number;
+};
+
+export type SchoolCourseRecord = {
+  id: string;
+  slug: string;
+  abbr: string;
+  name: string;
+  teaser: string;
+  description: string;
+  imagePath?: string | null;
+  sortOrder: number;
+  published: boolean;
+  schedules?: CourseScheduleEntry[];
+};
+
+export async function fetchSchoolCourses() {
+  return handle<SchoolCourseRecord[]>(
+    await fetch(`${API}/community/courses`, { headers: authHeaders() }),
+  );
+}
+
+export async function adminFetchCourses() {
+  return handle<SchoolCourseRecord[]>(
+    await fetch(`${API}/admin/courses`, { headers: authHeaders() }),
+  );
+}
+
+export async function adminCreateCourse(body: Partial<SchoolCourseRecord> & { slug: string; name: string }) {
+  return handle<SchoolCourseRecord>(
+    await fetch(`${API}/admin/courses`, {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify(body),
+    }),
+  );
+}
+
+export async function adminUpdateCourse(id: string, body: Partial<SchoolCourseRecord>) {
+  return handle<SchoolCourseRecord>(
+    await fetch(`${API}/admin/courses/${id}`, {
+      method: "PATCH",
+      headers: authHeaders(),
+      body: JSON.stringify(body),
+    }),
+  );
+}
+
+export async function adminDeleteCourse(id: string) {
+  return handle<{ ok: boolean }>(
+    await fetch(`${API}/admin/courses/${id}`, { method: "DELETE", headers: authHeaders() }),
+  );
+}
+
+export async function adminAddSchedule(
+  courseId: string,
+  body: Omit<CourseScheduleEntry, "id" | "courseId">,
+) {
+  return handle<CourseScheduleEntry>(
+    await fetch(`${API}/admin/courses/${courseId}/schedules`, {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify(body),
+    }),
+  );
+}
+
+export async function adminDeleteSchedule(id: string) {
+  return handle<{ ok: boolean }>(
+    await fetch(`${API}/admin/schedules/${id}`, { method: "DELETE", headers: authHeaders() }),
+  );
+}
+
+export async function adminPublishNews(content: string) {
+  return handle<Post>(
+    await fetch(`${API}/admin/news`, {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify({ content }),
+    }),
+  );
+}
+
+export async function adminFetchEvents() {
+  return handle<SchoolEvent[]>(await fetch(`${API}/admin/events`, { headers: authHeaders() }));
+}
+
+export async function adminCreateEvent(body: {
+  title: string;
+  startsAt: string;
+  description?: string;
+  location?: string;
+}) {
+  return handle<SchoolEvent>(
+    await fetch(`${API}/admin/events`, {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify(body),
+    }),
+  );
+}
+
+export async function adminDeleteEvent(id: string) {
+  return handle<{ ok: boolean }>(
+    await fetch(`${API}/admin/events/${id}`, { method: "DELETE", headers: authHeaders() }),
+  );
+}
+
+export async function adminCreateResource(body: Omit<ResourceLink, "id">) {
+  return handle<ResourceLink>(
+    await fetch(`${API}/admin/resources`, {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify(body),
+    }),
+  );
+}
+
+export async function adminDeleteResource(id: string) {
+  return handle<{ ok: boolean }>(
+    await fetch(`${API}/admin/resources/${id}`, { method: "DELETE", headers: authHeaders() }),
   );
 }

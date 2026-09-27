@@ -210,6 +210,17 @@ communityRouter.post("/groups/:id/leave", async (req, res) => {
   return res.json({ ok: true });
 });
 
+communityRouter.get("/courses", async (_req, res) => {
+  const courses = await prisma.schoolCourse.findMany({
+    where: { published: true },
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    include: {
+      schedules: { orderBy: [{ weekday: "asc" }, { sortOrder: "asc" }, { startTime: "asc" }] },
+    },
+  });
+  return res.json(courses);
+});
+
 communityRouter.get("/events", async (req, res) => {
   const events = await prisma.schoolEvent.findMany({
     where: { startsAt: { gte: new Date(Date.now() - 86400000) } },

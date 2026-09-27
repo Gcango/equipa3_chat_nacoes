@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import AppShell from "../components/AppShell";
 import PasswordInput from "../components/PasswordInput";
+import DirecaoEscolaPanel from "../components/DirecaoEscolaPanel";
 import Toast from "../components/Toast";
 import {
   approveUser,
@@ -119,11 +120,16 @@ export default function AdminPage() {
     <AppShell
       user={user}
       onLogout={logout}
-      hero={{ title: "Moderação", subtitle: "Gestão de contas, denúncias e segurança da comunidade." }}
+      hero={{
+        title: "Administração escolar",
+        subtitle: "Direcção: cursos, notícias, horários, eventos, contas e moderação.",
+      }}
     >
       {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
 
       <div className="page-narrow admin-page">
+        <DirecaoEscolaPanel onToast={setToast} />
+
         <div className="panel card">
           <h2>Criar conta escolar</h2>
           <p className="composer__hint">

@@ -126,7 +126,7 @@ export default function CommunityFeedSidebar({
               onClick={onNavigate}
             >
               <IcSettings className="cn-drawer-link__icon" />
-              <span className="cn-drawer-link__label">Moderação</span>
+              <span className="cn-drawer-link__label">Direção e administração</span>
             </Link>
           </nav>
         </section>

@@ -9,6 +9,7 @@ import NotificationsPage from "./pages/community/NotificationsPage";
 import GroupsPage from "./pages/community/GroupsPage";
 import CalendarPage from "./pages/community/CalendarPage";
 import SchoolIdentityPage from "./pages/community/SchoolIdentityPage";
+import CoursesPage from "./pages/community/CoursesPage";
 
 function PrivateRoute({ children }: { children: JSX.Element }) {
   const token = localStorage.getItem("token");
@@ -73,6 +74,15 @@ export default function App() {
       />
       <Route path="/projetos" element={<Navigate to="/grupos#projectos" replace />} />
       <Route path="/recursos" element={<Navigate to="/escola#recursos" replace />} />
+      <Route
+        path="/cursos"
+        element={
+          <PrivateRoute>
+            <CoursesPage />
+          </PrivateRoute>
+        }
+      />
+      <Route path="/escola/cursos" element={<Navigate to="/cursos" replace />} />
       <Route
         path="/escola"
         element={

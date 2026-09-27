@@ -8,7 +8,8 @@ const LINKS = [
   { to: "/mensagens", label: "Mensagens", desc: "Conversas privadas" },
   { to: "/grupos", label: "Grupos", desc: "Turmas, comunidades e projectos" },
   { to: "/calendario", label: "Calendário", desc: "Eventos e agenda escolar" },
-  { to: "/escola", label: "A escola", desc: "Identidade, contactos e recursos" },
+  { to: "/escola", label: "A escola", desc: "Identidade, valores, contactos e recursos" },
+  { to: "/cursos", label: "Cursos", desc: "Oferta formativa e perfis profissionais" },
 ];
 
 export default function CommunityHomePage() {

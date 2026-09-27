@@ -4,10 +4,12 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { config, isSchoolEmail } from "../lib/config.js";
 import { requireAuth, requireActive, requireAdmin } from "../middleware/auth.js";
+import { registerSchoolAdminRoutes } from "./adminSchool.js";
 
 export const adminRouter = Router();
 
 adminRouter.use(requireAuth, requireActive, requireAdmin);
+registerSchoolAdminRoutes(adminRouter);
 
 const createUserSchema = z.object({
   name: z.string().min(2).max(120),

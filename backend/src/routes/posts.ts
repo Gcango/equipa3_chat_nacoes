@@ -72,10 +72,17 @@ postsRouter.post("/", requireAuth, requireActive, async (req, res) => {
     return res.status(400).json({ error: "Publicação inválida." });
   }
 
+  const type = parsed.data.type ?? "NORMAL";
+  if ((type === "NOTICIA" || type === "EVENTO") && req.user!.role !== "ADMIN") {
+    return res.status(403).json({
+      error: "Só a direcção pode publicar notícias ou eventos oficiais.",
+    });
+  }
+
   const created = await prisma.post.create({
     data: {
       content: parsed.data.content.trim(),
-      type: parsed.data.type ?? "NORMAL",
+      type,
       authorId: req.user!.id,
     },
   });

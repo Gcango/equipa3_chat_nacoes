@@ -47,7 +47,9 @@ function CommunityLayoutBody({
       }
     >
       <div className={`cn-dash${nav?.navOpen ? " cn-dash--nav-open" : ""}`}>
-        <div className="cn-dash__grid cn-dash__grid--menu">
+        <div
+          className={`cn-dash__grid${showWidgets ? " cn-dash__grid--menu" : " cn-dash__grid--solo"}`}
+        >
           <main className="cn-dash__main" id="main-content" tabIndex={-1}>
             {error && <p className="cn-banner cn-banner--error">{error}</p>}
             {children}

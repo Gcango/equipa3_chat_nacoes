@@ -260,6 +260,114 @@ async function main() {
     });
   }
 
+  const courseCatalog = [
+    {
+      slug: "pi",
+      abbr: "P.I.",
+      name: "Programadores de Informática",
+      teaser: "Desenvolvimento de software, bases de dados e projectos digitais.",
+      description:
+        "Formação em programação, bases de dados, redes e projectos digitais. Os alunos desenvolvem aplicações, trabalham em equipa e preparam-se para estágios e emprego em empresas de IT e serviços.",
+      imagePath: "/courses/pi.png",
+      sortOrder: 1,
+    },
+    {
+      slug: "tc",
+      abbr: "T.C.",
+      name: "Técnicos de Comércio",
+      teaser: "Gestão comercial, marketing e atendimento ao cliente.",
+      description:
+        "Comércio, marketing, vendas e atendimento ao cliente. Enfatizamos negociação, comunicação profissional e espírito empreendedor.",
+      imagePath: "/courses/tc.png",
+      sortOrder: 2,
+    },
+    {
+      slug: "trb",
+      abbr: "T.R.B.",
+      name: "Técnicos de Restaurante e Bar",
+      teaser: "Cozinha, sala e serviço de restauração e bebidas.",
+      description:
+        "Cozinha, sala e bar com prática em laboratórios equipados. Higiene e segurança alimentar em contexto real.",
+      imagePath: "/courses/trb-cozinha.png",
+      sortOrder: 3,
+    },
+    {
+      slug: "tma",
+      abbr: "T.M.A.",
+      name: "Técnico de Mecatrónica e Automóveis",
+      teaser: "Veículos, sistemas mecatrónicos e diagnóstico técnico.",
+      description:
+        "Diagnóstico, reparação e manutenção de veículos e sistemas mecatrónicos. Formação hands-on em oficina.",
+      imagePath: "/courses/tma.png",
+      sortOrder: 4,
+    },
+    {
+      slug: "tmi",
+      abbr: "T.M.I.",
+      name: "Técnico de Manutenção Industrial",
+      teaser: "Instalações, manutenção preventiva e segurança industrial.",
+      description:
+        "Manutenção de equipamentos e instalações industriais. Foco em prevenção de avarias e segurança no trabalho.",
+      imagePath: "/courses/tmi.png",
+      sortOrder: 5,
+    },
+    {
+      slug: "tdc",
+      abbr: "T.D.C.",
+      name: "Técnico de Desenho de Construção Civil",
+      teaser: "Projecto, levantamentos e apoio à construção civil.",
+      description:
+        "Desenho técnico, modelação e apoio a projectos de construção civil com ferramentas digitais e papel.",
+      imagePath: "/courses/tdc.png",
+      sortOrder: 6,
+    },
+  ] as const;
+
+  for (const c of courseCatalog) {
+    await prisma.schoolCourse.upsert({
+      where: { slug: c.slug },
+      update: {
+        abbr: c.abbr,
+        name: c.name,
+        teaser: c.teaser,
+        description: c.description,
+        imagePath: c.imagePath,
+        sortOrder: c.sortOrder,
+        published: true,
+      },
+      create: { ...c, published: true },
+    });
+  }
+
+  const piCourse = await prisma.schoolCourse.findUnique({ where: { slug: "pi" } });
+  if (piCourse) {
+    const schedCount = await prisma.courseScheduleEntry.count({ where: { courseId: piCourse.id } });
+    if (schedCount === 0) {
+      await prisma.courseScheduleEntry.createMany({
+        data: [
+          {
+            courseId: piCourse.id,
+            weekday: 1,
+            startTime: "08:30",
+            endTime: "12:30",
+            room: "Lab. Informática 1",
+            label: "Programação e bases de dados",
+            sortOrder: 1,
+          },
+          {
+            courseId: piCourse.id,
+            weekday: 3,
+            startTime: "14:00",
+            endTime: "17:00",
+            room: "Lab. Informática 2",
+            label: "Projecto integrado",
+            sortOrder: 2,
+          },
+        ],
+      });
+    }
+  }
+
   const notifCount = await prisma.notification.count({ where: { userId: aluno.id } });
   if (notifCount === 0) {
     await prisma.notification.createMany({

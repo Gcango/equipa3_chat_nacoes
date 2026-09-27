@@ -1,14 +1,22 @@
 import { useEffect, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import CommunityLayout from "../../components/CommunityLayout";
 import { fetchResourceLinks, fetchSchoolProfile, type ResourceLink, type SchoolProfile } from "../../api";
-import { SCHOOL_COURSES, courseAnchor } from "../../data/schoolCourses";
 import { useAuthUser } from "../../hooks/useAuthUser";
 
 export default function SchoolIdentityPage() {
   const { user, displayUser, error, logout, summary } = useAuthUser();
+  const { hash } = useLocation();
+  const navigate = useNavigate();
   const [school, setSchool] = useState<SchoolProfile | null>(null);
   const [resources, setResources] = useState<ResourceLink[]>([]);
   const [localError, setLocalError] = useState("");
+
+  useEffect(() => {
+    if (hash === "#cursos" || hash.startsWith("#curso-")) {
+      navigate(`/cursos${hash}`, { replace: true });
+    }
+  }, [hash, navigate]);
 
   useEffect(() => {
     Promise.all([fetchSchoolProfile(), fetchResourceLinks()])
@@ -33,12 +41,17 @@ export default function SchoolIdentityPage() {
       error={error || localError}
       showWidgets={false}
     >
-      <section className="cn-page cn-glass">
+      <section className="cn-page cn-glass cn-page--escola" id="identidade">
+        <p className="cn-page__kicker">Instituição</p>
         {school && (
           <>
             <h2 className="cn-page__title">{school.name}</h2>
             <p className="cn-page__lead">{school.motto}</p>
             <p className="cn-page__muted">{school.tagline}</p>
+            <p className="cn-page__muted cn-page__lead--compact">
+              Cursos e perfis de formação:{" "}
+              <Link to="/cursos">ver Cursos profissionais</Link>.
+            </p>
             <h3 className="cn-page__subtitle">Valores</h3>
             <ul className="cn-page__bullets">
               {school.values.map((v) => (
@@ -59,23 +72,6 @@ export default function SchoolIdentityPage() {
             <p className="cn-page__muted">Rede privada {school.emailDomain}</p>
           </>
         )}
-
-        <h3 className="cn-page__subtitle cn-page__subtitle--section" id="cursos">
-          Cursos profissionais
-        </h3>
-        <p className="cn-page__lead cn-page__lead--compact">
-          Oferta formativa da escola — escolhe o teu curso na barra azul ou explora aqui em detalhe.
-        </p>
-        <ul className="cn-courses-grid">
-          {SCHOOL_COURSES.map((c) => (
-            <li key={c.id} id={courseAnchor(c.id)} className="cn-courses-grid__item cn-glass">
-              <p className="cn-courses-grid__abbr">{c.abbr}</p>
-              <h4 className="cn-courses-grid__name">{c.name}</h4>
-              <p className="cn-courses-grid__teaser">{c.teaser}</p>
-              {c.placeholder && <span className="cn-courses-grid__badge">A confirmar</span>}
-            </li>
-          ))}
-        </ul>
 
         <h3 className="cn-page__subtitle cn-page__subtitle--section" id="recursos">
           Recursos e apoio

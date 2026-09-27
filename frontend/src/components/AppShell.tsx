@@ -47,7 +47,7 @@ export default function AppShell({
         <div className="cn-app-shift">
           <div className="cn-header-block">
             <CommunityHeader user={user} onLogout={onLogout} summary={communitySummary} />
-            <CommunitySchoolNav user={user} />
+            <CommunitySchoolNav />
           </div>
           <div className="site-body">{children}</div>
           <CommunityFooter />

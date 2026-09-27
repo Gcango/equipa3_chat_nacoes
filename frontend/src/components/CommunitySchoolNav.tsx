@@ -1,6 +1,6 @@
-import { Fragment } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import type { User } from "../api";
+import { fetchSchoolCourses, type SchoolCourseRecord } from "../api";
 import { SCHOOL_COURSES, courseAnchor } from "../data/schoolCourses";
 
 type NavLink = {
@@ -14,26 +14,21 @@ type NavItem = {
   label: string;
   isActive: (pathname: string, hash: string) => boolean;
   menu?: NavLink[];
-  /** Painel largo em grelha (Cursos). */
   menuWide?: boolean;
 };
 
-const SCHOOL_NAV: NavItem[] = [
+const BASE_NAV: NavItem[] = [
   {
     to: "/feed",
     label: "Início",
     isActive: (p) => p === "/feed",
-    menu: [
-      { to: "/feed", label: "Mural", desc: "Publicações e notícias da comunidade" },
-    ],
+    menu: [{ to: "/feed", label: "Mural", desc: "Publicações e notícias da comunidade" }],
   },
   {
     to: "/calendario",
     label: "Calendário",
     isActive: (p) => p === "/calendario",
-    menu: [
-      { to: "/calendario", label: "Agenda escolar", desc: "Eventos, reuniões e datas importantes" },
-    ],
+    menu: [{ to: "/calendario", label: "Agenda escolar", desc: "Eventos, reuniões e datas importantes" }],
   },
   {
     to: "/grupos",
@@ -45,31 +40,38 @@ const SCHOOL_NAV: NavItem[] = [
     ],
   },
   {
-    to: "/escola#cursos",
+    to: "/cursos",
     label: "Cursos",
-    isActive: (p, hash) => p === "/escola" && (hash === "#cursos" || hash.startsWith("#curso-")),
-    menu: SCHOOL_COURSES.map((c) => ({
-      to: `/escola#${courseAnchor(c.id)}`,
-      label: c.placeholder ? c.name : `${c.abbr} — ${c.name}`,
-      desc: c.teaser,
-    })),
+    isActive: (p) => p === "/cursos",
     menuWide: true,
   },
   {
     to: "/escola",
     label: "A escola",
-    isActive: (p, hash) => p === "/escola" && hash !== "#cursos" && !hash.startsWith("#curso-"),
+    isActive: (p) => p === "/escola",
     menu: [
       { to: "/escola", label: "Identidade", desc: "Missão, valores e contactos" },
-      { to: "/escola#cursos", label: "Oferta formativa", desc: "Todos os cursos profissionais" },
       { to: "/escola#recursos", label: "Recursos", desc: "Ligações úteis e apoio" },
     ],
   },
 ];
 
-type Props = {
-  user: User | null;
-};
+function courseMenuLinks(courses: SchoolCourseRecord[]): NavLink[] {
+  if (courses.length === 0) {
+    return SCHOOL_COURSES.map((c) => ({
+      to: `/cursos#${courseAnchor(c.id)}`,
+      label: c.placeholder ? c.name : `${c.abbr} ${c.name}`,
+      desc: c.teaser,
+    }));
+  }
+  return courses
+    .filter((c) => c.published)
+    .map((c) => ({
+      to: `/cursos#${courseAnchor(c.slug)}`,
+      label: c.abbr === "—" ? c.name : `${c.abbr} ${c.name}`,
+      desc: c.teaser,
+    }));
+}
 
 function NavEntry({
   item,
@@ -103,7 +105,11 @@ function NavEntry({
   }
 
   return (
-    <div className="cn-school-nav__drop-wrap">
+    <div
+      className={`cn-school-nav__drop-wrap${active ? " cn-school-nav__drop-wrap--active" : ""}${
+        item.menuWide ? " cn-school-nav__drop-wrap--wide" : ""
+      }`}
+    >
       {trigger}
       <div
         className={`cn-school-nav__panel${item.menuWide ? " cn-school-nav__panel--wide" : ""}`}
@@ -125,22 +131,30 @@ function NavEntry({
   );
 }
 
-export default function CommunitySchoolNav({ user }: Props) {
+export default function CommunitySchoolNav() {
   const { pathname, hash } = useLocation();
-  const domain = user?.email?.includes("@") ? `@${user.email.split("@")[1]}` : "@epgerabriel.edu.pt";
+  const [courses, setCourses] = useState<SchoolCourseRecord[]>([]);
+
+  useEffect(() => {
+    fetchSchoolCourses()
+      .then(setCourses)
+      .catch(() => setCourses([]));
+  }, []);
+
+  const schoolNav = useMemo(() => {
+    return BASE_NAV.map((item) =>
+      item.label === "Cursos" ? { ...item, menu: courseMenuLinks(courses) } : item,
+    );
+  }, [courses]);
 
   return (
     <nav className="cn-school-nav" aria-label="Navegação escolar">
       <div className="cn-school-nav__inner">
         <div className="cn-school-nav__links">
-          {SCHOOL_NAV.map((item, index) => (
-            <Fragment key={item.label}>
-              {index > 0 && <span className="cn-school-nav__sep" aria-hidden />}
-              <NavEntry item={item} pathname={pathname} hash={hash} />
-            </Fragment>
+          {schoolNav.map((item) => (
+            <NavEntry key={item.label} item={item} pathname={pathname} hash={hash} />
           ))}
         </div>
-        <span className="cn-school-nav__domain">{domain}</span>
       </div>
     </nav>
   );
