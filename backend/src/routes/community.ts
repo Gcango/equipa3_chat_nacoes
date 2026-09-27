@@ -26,8 +26,12 @@ communityRouter.get("/messages/threads", async (req, res) => {
     where: { OR: [{ senderId: userId }, { recipientId: userId }] },
     orderBy: { createdAt: "desc" },
     include: {
-      sender: { select: { id: true, name: true, course: true, classGroup: true } },
-      recipient: { select: { id: true, name: true, course: true, classGroup: true } },
+      sender: {
+        select: { id: true, name: true, course: true, classGroup: true, avatarUrl: true },
+      },
+      recipient: {
+        select: { id: true, name: true, course: true, classGroup: true, avatarUrl: true },
+      },
     },
   });
 
@@ -65,7 +69,7 @@ communityRouter.get("/messages/with/:otherUserId", async (req, res) => {
 
   const other = await prisma.user.findFirst({
     where: { id: otherUserId, status: "ATIVO" },
-    select: { id: true, name: true },
+    select: { id: true, name: true, avatarUrl: true },
   });
   if (!other) return res.status(404).json({ error: "Utilizador não encontrado." });
 

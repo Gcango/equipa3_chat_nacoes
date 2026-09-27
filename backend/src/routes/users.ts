@@ -36,6 +36,7 @@ usersRouter.get("/directory", requireAuth, requireActive, async (req, res) => {
       course: true,
       classGroup: true,
       role: true,
+      avatarUrl: true,
     },
     orderBy: { name: "asc" },
   });
@@ -43,9 +44,20 @@ usersRouter.get("/directory", requireAuth, requireActive, async (req, res) => {
 });
 
 usersRouter.patch("/me", requireAuth, requireActive, async (req, res) => {
+  const avatarSchema = z
+    .union([
+      z.null(),
+      z
+        .string()
+        .regex(/^data:image\/(jpeg|png|webp);base64,/, "Formato de imagem inválido.")
+        .max(400_000),
+    ])
+    .optional();
+
   const schema = z.object({
     bio: z.string().max(500).optional(),
     name: z.string().min(2).max(120).optional(),
+    avatarUrl: avatarSchema,
   });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) {
@@ -62,6 +74,7 @@ usersRouter.patch("/me", requireAuth, requireActive, async (req, res) => {
       course: true,
       classGroup: true,
       bio: true,
+      avatarUrl: true,
       role: true,
       status: true,
     },

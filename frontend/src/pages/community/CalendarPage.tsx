@@ -33,7 +33,10 @@ export default function CalendarPage() {
       showWidgets={false}
     >
       <section className="cn-page cn-glass">
-        <h2 className="cn-page__title">Calendário escolar</h2>
+        <h2 className="cn-page__title">Calendário e eventos</h2>
+        <p className="cn-page__lead">
+          Agenda escolar, actividades, reuniões e momentos importantes da comunidade Gerabriel.
+        </p>
         <ul className="cn-events cn-events--page">
           {events.map((e) => {
             const dt = formatEventDate(e.startsAt);

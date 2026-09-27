@@ -1,8 +1,9 @@
 import type { ReactNode } from "react";
 import type { CommunitySummary, User } from "../api";
+import { CommunityNavProvider, useCommunityNav } from "../context/CommunityNavContext";
 import AppShell from "./AppShell";
-import CommunityFeedSidebar from "./CommunityFeedSidebar";
 import CommunityFeedWidgets from "./CommunityFeedWidgets";
+import CommunitySettingsDrawer from "./CommunitySettingsDrawer";
 
 type Props = {
   user: User | null;
@@ -14,7 +15,7 @@ type Props = {
   children: ReactNode;
 };
 
-export default function CommunityLayout({
+function CommunityLayoutBody({
   user,
   displayUser,
   onLogout,
@@ -23,22 +24,45 @@ export default function CommunityLayout({
   showWidgets = true,
   children,
 }: Props) {
-  return (
-    <AppShell user={user} onLogout={onLogout} communityFeed communitySummary={summary}>
-      <div className="cn-dash">
-        <div className="cn-dash__grid">
-          {displayUser && (
-            <CommunityFeedSidebar user={displayUser} summary={summary} />
-          )}
+  const nav = useCommunityNav();
 
-          <main className="cn-dash__main">
+  return (
+    <AppShell
+      user={user}
+      onLogout={onLogout}
+      communityFeed
+      communitySummary={summary}
+      communityNavOpen={nav?.navOpen ?? false}
+      onCommunityNavClose={nav?.closeNav}
+      communityDrawer={
+        displayUser && nav ? (
+          <CommunitySettingsDrawer
+            open={nav.navOpen}
+            user={displayUser}
+            summary={summary}
+            onClose={nav.closeNav}
+            onLogout={onLogout}
+          />
+        ) : null
+      }
+    >
+      <div className={`cn-dash${nav?.navOpen ? " cn-dash--nav-open" : ""}`}>
+        <div className="cn-dash__grid cn-dash__grid--menu">
+          <main className="cn-dash__main" id="main-content" tabIndex={-1}>
             {error && <p className="cn-banner cn-banner--error">{error}</p>}
             {children}
           </main>
-
           {showWidgets && <CommunityFeedWidgets />}
         </div>
       </div>
     </AppShell>
+  );
+}
+
+export default function CommunityLayout(props: Props) {
+  return (
+    <CommunityNavProvider>
+      <CommunityLayoutBody {...props} />
+    </CommunityNavProvider>
   );
 }

@@ -1,4 +1,5 @@
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState, type ReactNode } from "react";
+import FeedNoticiasSection from "./FeedNoticiasSection";
 import PostCard from "./PostCard";
 import ReportModal from "./ReportModal";
 import Toast from "./Toast";
@@ -16,9 +17,11 @@ import {
 type Props = {
   userName: string;
   onPostsChange?: (count: number) => void;
+  /** Conteúdo entre o compositor e o feed (ex.: histórias) */
+  topSlot?: ReactNode;
 };
 
-export default function CommunityFeedStream({ userName, onPostsChange }: Props) {
+export default function CommunityFeedStream({ userName, onPostsChange, topSlot }: Props) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [content, setContent] = useState("");
   const [composerOpen, setComposerOpen] = useState(false);
@@ -33,7 +36,7 @@ export default function CommunityFeedStream({ userName, onPostsChange }: Props) 
 
   const loadPosts = useCallback(async () => {
     const list = await fetchPosts();
-    setPosts(list);
+    setPosts(list.filter((p) => p.type !== "NOTICIA"));
     onPostsChange?.(list.length);
     setLoadError("");
   }, [onPostsChange]);
@@ -114,7 +117,31 @@ export default function CommunityFeedStream({ userName, onPostsChange }: Props) 
             className="cn-composer__trigger"
             onClick={() => setComposerOpen(true)}
           >
-            O que estás a pensar, {firstName}?
+            Em que estás a pensar, {firstName}?
+          </button>
+        </div>
+        <div className="cn-composer__toolbar">
+          <div className="cn-composer__actions">
+            <button type="button" className="cn-composer__chip" disabled title="Em breve">
+              Texto
+            </button>
+            <button type="button" className="cn-composer__chip cn-composer__chip--photo" disabled title="Em breve">
+              Foto
+            </button>
+            <button type="button" className="cn-composer__chip cn-composer__chip--event" disabled title="Em breve">
+              Vídeo
+            </button>
+            <button type="button" className="cn-composer__chip cn-composer__chip--doc" disabled title="Em breve">
+              Projeto
+            </button>
+          </div>
+          <button
+            type="button"
+            className="cn-composer__publish"
+            disabled={!content.trim()}
+            onClick={() => setComposerOpen(true)}
+          >
+            Publicar
           </button>
         </div>
         {(composerOpen || content) && (
@@ -154,6 +181,10 @@ export default function CommunityFeedStream({ userName, onPostsChange }: Props) 
           </form>
         )}
       </section>
+
+      {topSlot}
+
+      <FeedNoticiasSection onReport={setReportPostId} />
 
       <div className="cn-feed" id="feed-posts">
         {posts.length === 0 && !loadError && (

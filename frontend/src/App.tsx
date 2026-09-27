@@ -8,8 +8,6 @@ import MessagesPage from "./pages/community/MessagesPage";
 import NotificationsPage from "./pages/community/NotificationsPage";
 import GroupsPage from "./pages/community/GroupsPage";
 import CalendarPage from "./pages/community/CalendarPage";
-import ProjectsPage from "./pages/community/ProjectsPage";
-import ResourcesPage from "./pages/community/ResourcesPage";
 import SchoolIdentityPage from "./pages/community/SchoolIdentityPage";
 
 function PrivateRoute({ children }: { children: JSX.Element }) {
@@ -40,6 +38,7 @@ export default function App() {
           </PrivateRoute>
         }
       />
+      <Route path="/noticias" element={<Navigate to="/feed" replace />} />
       <Route
         path="/mensagens"
         element={
@@ -72,22 +71,8 @@ export default function App() {
           </PrivateRoute>
         }
       />
-      <Route
-        path="/projetos"
-        element={
-          <PrivateRoute>
-            <ProjectsPage />
-          </PrivateRoute>
-        }
-      />
-      <Route
-        path="/recursos"
-        element={
-          <PrivateRoute>
-            <ResourcesPage />
-          </PrivateRoute>
-        }
-      />
+      <Route path="/projetos" element={<Navigate to="/grupos#projectos" replace />} />
+      <Route path="/recursos" element={<Navigate to="/escola#recursos" replace />} />
       <Route
         path="/escola"
         element={

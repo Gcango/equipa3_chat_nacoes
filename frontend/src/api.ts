@@ -9,6 +9,7 @@ export type User = {
   course?: string;
   classGroup?: string;
   bio?: string | null;
+  avatarUrl?: string | null;
   studentNumber?: string;
 };
 
@@ -87,7 +88,11 @@ export async function fetchMe() {
   return handle<User>(await fetch(`${API}/users/me`, { headers: authHeaders() }));
 }
 
-export async function updateProfile(data: { bio?: string; name?: string }) {
+export async function updateProfile(data: {
+  bio?: string;
+  name?: string;
+  avatarUrl?: string | null;
+}) {
   return handle<User>(
     await fetch(`${API}/users/me`, {
       method: "PATCH",
@@ -115,7 +120,13 @@ export async function createPost(content: string, type?: string) {
 export type CommunitySummary = { unreadMessages: number; unreadNotifications: number };
 
 export type MessageThread = {
-  otherUser: { id: string; name: string; course: string; classGroup: string };
+  otherUser: {
+    id: string;
+    name: string;
+    course: string;
+    classGroup: string;
+    avatarUrl?: string | null;
+  };
   lastMessage: string;
   lastAt: string;
   unread: number;
@@ -168,6 +179,7 @@ export type DirectoryUser = {
   course: string;
   classGroup: string;
   role: string;
+  avatarUrl?: string | null;
 };
 
 export type SchoolProfile = {
@@ -192,7 +204,10 @@ export async function fetchMessageThreads() {
 }
 
 export async function fetchConversation(otherUserId: string) {
-  return handle<{ otherUser: { id: string; name: string }; messages: DirectMessage[] }>(
+  return handle<{
+    otherUser: { id: string; name: string; avatarUrl?: string | null };
+    messages: DirectMessage[];
+  }>(
     await fetch(`${API}/community/messages/with/${otherUserId}`, { headers: authHeaders() }),
   );
 }

@@ -1,39 +1,65 @@
+import { Link } from "react-router-dom";
 import UserAvatar from "./UserAvatar";
 
+const NEWS = [
+  {
+    title: "Torneio de Futsal",
+    date: "22 Set",
+    thumb: "linear-gradient(135deg, #1e40af, #3b82f6)",
+  },
+  {
+    title: "Feira de Cursos",
+    date: "26 Set",
+    thumb: "linear-gradient(135deg, #c2410c, #f97316)",
+  },
+  {
+    title: "Entrega de projectos",
+    date: "3 Out",
+    thumb: "linear-gradient(135deg, #065f46, #10b981)",
+  },
+];
+
 const EVENTS = [
+  { day: "30", mon: "SET", title: "Palestra: O futuro do teu curso", meta: "30 Set · 10h00 · Auditório" },
   { day: "22", mon: "SET", title: "Torneio de Futsal", meta: "22 Set · 16h00 · Pavilhão" },
-  { day: "26", mon: "SET", title: "Feira de Cursos", meta: "26 Set · 10h00 · Átrio" },
   { day: "03", mon: "OUT", title: "Entrega de projectos", meta: "3 Out · 14h30 · Informática" },
 ];
 
-const ONLINE = [
-  "Ana Silva",
-  "Miguel Costa",
-  "Sofia Ribeiro",
-  "Rafael Costa",
-  "Délia Silva",
-  "João Pedro",
-  "Inês Martins",
-  "Tomás Dias",
-  "Carla Nunes",
-  "Pedro Alves",
-];
-
-const QUICK = [
-  { label: "Recursos da Escola", icon: "📚" },
-  { label: "Calendário Escolar", icon: "📅" },
-  { label: "Projetos em Grupo", icon: "👥" },
-  { label: "Biblioteca Digital", icon: "📖" },
-  { label: "Suporte / Ajuda", icon: "💬" },
+const SUGGEST = [
+  { name: "Ana Silva", role: "Aluna · 11ºB" },
+  { name: "Miguel Costa", role: "Aluno · 12ºA" },
+  { name: "Sofia Ribeiro", role: "Professora" },
 ];
 
 export default function CommunityFeedWidgets() {
   return (
-    <aside className="cn-side cn-side--widgets" aria-label="Eventos e atalhos">
+    <aside className="cn-side cn-side--widgets" aria-label="Notícias, eventos e sugestões">
+      <section className="cn-widget cn-glass">
+        <div className="cn-widget__head">
+          <h3>Últimas notícias</h3>
+          <Link to="/feed" className="cn-widget__link">
+            Ver todas
+          </Link>
+        </div>
+        <ul className="cn-news">
+          {NEWS.map((n) => (
+            <li key={n.title}>
+              <span className="cn-news__thumb" style={{ background: n.thumb }} aria-hidden />
+              <div>
+                <strong>{n.title}</strong>
+                <span>{n.date}</span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
+
       <section className="cn-widget cn-glass">
         <div className="cn-widget__head">
           <h3>Próximos eventos</h3>
-          <span className="cn-widget__link">Ver todos</span>
+          <Link to="/calendario" className="cn-widget__link">
+            Ver todos
+          </Link>
         </div>
         <ul className="cn-events">
           {EVENTS.map((e) => (
@@ -52,41 +78,21 @@ export default function CommunityFeedWidgets() {
       </section>
 
       <section className="cn-widget cn-glass">
-        <h3>Pessoas online</h3>
-        <p className="cn-widget__online-meta">12 pessoas online agora</p>
-        <div className="cn-online-grid">
-          {ONLINE.map((name) => (
-            <div key={name} className="cn-online-grid__item">
-              <span className="cn-online-grid__avatar">
-                <UserAvatar name={name} size="sm" />
-                <span className="cn-online-grid__dot" aria-hidden />
-              </span>
-              <span className="cn-online-grid__name">{name.split(" ")[0]}</span>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="cn-widget cn-glass">
-        <h3>Acesso rápido</h3>
-        <ul className="cn-quick">
-          {QUICK.map((q) => (
-            <li key={q.label}>
-              <button type="button" disabled title="Em breve">
-                <span aria-hidden>{q.icon}</span>
-                {q.label}
+        <h3>Pessoas que talvez conheças</h3>
+        <ul className="cn-suggest">
+          {SUGGEST.map((p) => (
+            <li key={p.name}>
+              <UserAvatar name={p.name} size="sm" />
+              <div className="cn-suggest__meta">
+                <strong>{p.name}</strong>
+                <span>{p.role}</span>
+              </div>
+              <button type="button" className="cn-suggest__follow" disabled title="Em breve">
+                + Seguir
               </button>
             </li>
           ))}
         </ul>
-      </section>
-
-      <section className="cn-brand-card cn-brand-card--photo cn-glass">
-        <span className="cn-brand-card__icon" aria-hidden>
-          🎓
-        </span>
-        <p className="cn-brand-card__title">GERABRIEL</p>
-        <p className="cn-brand-card__sub">Escola Profissional · Comunidade Digital Escolar</p>
       </section>
     </aside>
   );

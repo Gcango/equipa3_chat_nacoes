@@ -87,12 +87,17 @@ export default function PostCard({
     }
   }
 
-  const relativeWhen = new Date(post.createdAt).toLocaleString("pt-PT", {
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  function relativeWhenLabel(iso: string) {
+    const diff = Date.now() - new Date(iso).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "agora";
+    if (mins < 60) return `há ${mins} min`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 48) return `há ${hours} ${hours === 1 ? "hora" : "horas"}`;
+    return new Date(iso).toLocaleDateString("pt-PT", { day: "numeric", month: "short" });
+  }
+
+  const relativeWhen = relativeWhenLabel(post.createdAt);
 
   return (
     <article
@@ -111,16 +116,11 @@ export default function PostCard({
           <span className="post-card__sub">
             {isCommunity ? (
               <>
+                {post.author.classGroup
+                  ? `Turma ${post.author.classGroup}`
+                  : post.author.course ?? "Comunidade"}
+                {" · "}
                 {relativeWhen}
-                {post.author.course && (
-                  <>
-                    {" · "}
-                    <span className="post-card__tag">{post.author.course}</span>
-                  </>
-                )}
-                <span className="post-card__privacy" title="Comunidade escolar">
-                  {" · 🌐"}
-                </span>
               </>
             ) : (
               <>

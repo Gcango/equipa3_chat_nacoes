@@ -61,6 +61,7 @@ authRouter.post("/login", loginLimiter, async (req, res) => {
       course: user.course,
       classGroup: user.classGroup,
       bio: user.bio,
+      avatarUrl: user.avatarUrl,
     },
   });
 });

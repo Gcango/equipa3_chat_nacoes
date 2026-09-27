@@ -4,12 +4,11 @@ import CommunityWelcomeBanner from "../../components/CommunityWelcomeBanner";
 import { useAuthUser } from "../../hooks/useAuthUser";
 
 const LINKS = [
-  { to: "/feed", label: "Feed", desc: "Publicações e interacção" },
+  { to: "/feed", label: "Início", desc: "Feed, notícias e publicações" },
   { to: "/mensagens", label: "Mensagens", desc: "Conversas privadas" },
-  { to: "/grupos", label: "Grupos", desc: "Turmas e comunidades" },
-  { to: "/calendario", label: "Calendário", desc: "Eventos escolares" },
-  { to: "/projetos", label: "Projetos", desc: "Trabalhos e PAP" },
-  { to: "/recursos", label: "Recursos", desc: "Links úteis" },
+  { to: "/grupos", label: "Grupos", desc: "Turmas, comunidades e projectos" },
+  { to: "/calendario", label: "Calendário", desc: "Eventos e agenda escolar" },
+  { to: "/escola", label: "A escola", desc: "Identidade, contactos e recursos" },
 ];
 
 export default function CommunityHomePage() {

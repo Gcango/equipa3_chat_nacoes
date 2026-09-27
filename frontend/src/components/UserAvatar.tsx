@@ -1,6 +1,8 @@
 type Props = {
   name: string;
-  size?: "sm" | "md" | "lg";
+  avatarUrl?: string | null;
+  size?: "sm" | "md" | "lg" | "xl";
+  className?: string;
 };
 
 function initials(name: string): string {
@@ -10,9 +12,13 @@ function initials(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-export default function UserAvatar({ name, size = "md" }: Props) {
+export default function UserAvatar({ name, avatarUrl, size = "md", className }: Props) {
+  const classes = ["avatar", `avatar--${size}`, className].filter(Boolean).join(" ");
+  if (avatarUrl) {
+    return <img className={classes} src={avatarUrl} alt="" aria-hidden />;
+  }
   return (
-    <span className={`avatar avatar--${size}`} aria-hidden>
+    <span className={classes} aria-hidden>
       {initials(name)}
     </span>
   );

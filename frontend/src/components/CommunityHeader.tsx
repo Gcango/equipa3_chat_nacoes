@@ -1,6 +1,7 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link } from "react-router-dom";
 import type { CommunitySummary, User } from "../api";
-import { IcBell, IcHome, IcMessages, IcUsers } from "./CommunityIcons";
+import { useCommunityNav } from "../context/CommunityNavContext";
+import { IcBell } from "./CommunityIcons";
 import LogoBrand from "./LogoBrand";
 import UserAvatar from "./UserAvatar";
 
@@ -18,47 +19,44 @@ type Props = {
 
 function roleLine(user: User) {
   const role = ROLE_LABEL[user.role] ?? user.role;
-  return user.classGroup ? `${role} - ${user.classGroup}` : role;
+  return user.classGroup && user.classGroup !== "—"
+    ? `${role} · ${user.classGroup}`
+    : role;
 }
 
 export default function CommunityHeader({ user, onLogout, summary }: Props) {
-  const { pathname } = useLocation();
-  const unreadMsg = summary?.unreadMessages ?? 0;
   const unreadNotif = summary?.unreadNotifications ?? 0;
+  const nav = useCommunityNav();
 
   return (
     <header className="cn-header">
-      <div className="cn-header__inner">
-        <Link to="/feed" className="cn-header__brand">
-          <LogoBrand variant="topbar" compact onDark />
-        </Link>
+      <div className="cn-header__inner cn-header__inner--mockup">
+        <div className="cn-header__lead">
+          {nav && (
+            <button
+              type="button"
+              className={`cn-header__menu${nav.navOpen ? " cn-header__menu--active" : ""}`}
+              aria-label={nav.navOpen ? "Fechar definições" : "Abrir definições e conta"}
+              aria-expanded={nav.navOpen}
+              aria-controls="cn-nav-drawer"
+              onClick={nav.toggleNav}
+            >
+              <span className="cn-header__menu-bars" aria-hidden>
+                <span />
+                <span />
+                <span />
+              </span>
+            </button>
+          )}
+          <Link to="/feed" className="cn-header__brand">
+            <LogoBrand variant="topbar" loginPanel />
+          </Link>
+        </div>
 
         <div className="cn-header__actions">
           <Link
-            to="/feed"
-            className={`cn-header__icon${pathname === "/feed" ? " cn-header__icon--active" : ""}`}
-            aria-label="Início"
-          >
-            <IcHome />
-          </Link>
-          <Link
-            to="/grupos"
-            className={`cn-header__icon${pathname.startsWith("/grupos") ? " cn-header__icon--active" : ""}`}
-            aria-label="Grupos"
-          >
-            <IcUsers />
-          </Link>
-          <Link
-            to="/mensagens"
-            className={`cn-header__icon cn-header__icon--badge${pathname.startsWith("/mensagens") ? " cn-header__icon--active" : ""}`}
-            aria-label="Mensagens"
-          >
-            <IcMessages />
-            {unreadMsg > 0 && <span className="cn-header__badge">{unreadMsg}</span>}
-          </Link>
-          <Link
             to="/notificacoes"
-            className={`cn-header__icon cn-header__icon--badge${pathname.startsWith("/notificacoes") ? " cn-header__icon--active" : ""}`}
+            className="cn-header__icon cn-header__icon--badge"
             aria-label="Notificações"
           >
             <IcBell />
@@ -66,20 +64,21 @@ export default function CommunityHeader({ user, onLogout, summary }: Props) {
           </Link>
 
           {user ? (
-            <>
-              <Link to="/perfil" className="cn-header__profile">
-                <UserAvatar name={user.name} size="md" />
-                <div className="cn-header__profile-text">
-                  <strong>{user.name}</strong>
-                  <span>{roleLine(user)}</span>
-                </div>
+            <div className="cn-header__user">
+              <Link
+                to="/perfil"
+                className="cn-header__profile-avatar"
+                aria-label={`Perfil de ${user.name}`}
+              >
+                <UserAvatar name={user.name} avatarUrl={user.avatarUrl} size="md" />
               </Link>
-              {onLogout && (
-                <button type="button" className="cn-header__logout" onClick={onLogout}>
-                  Sair
-                </button>
-              )}
-            </>
+              <div className="cn-header__profile-text">
+                <Link to="/perfil" className="cn-header__profile-name">
+                  {user.name}
+                </Link>
+                <span>{roleLine(user)}</span>
+              </div>
+            </div>
           ) : (
             <Link to="/login" className="cn-header__login-link">
               Iniciar sessão
