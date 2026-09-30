@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,6 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { ScreenContainer } from '../../components/ScreenContainer';
 import { auth } from '../../services/firebase';
 import { uploadFotoPerfil } from '../../services/storage';
 import {
@@ -64,36 +66,16 @@ export default function ProfileScreen() {
   }
 
   async function escolherFoto() {
-  await abrirGaleria();
-}
-
-  async function abrirGaleria() {
-    const permissao = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permissao.granted) {
-      Alert.alert('Permissão necessária', 'Precisamos de acesso à galeria.');
-      return;
+    if (Platform.OS !== 'web') {
+      const permissao = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permissao.granted) {
+        Alert.alert('Permissão necessária', 'Precisamos de acesso à galeria.');
+        return;
+      }
     }
 
     const resultado = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.7,
-    });
-
-    if (!resultado.canceled && resultado.assets[0]) {
-      await processarFoto(resultado.assets[0].uri);
-    }
-  }
-
-  async function abrirCamera() {
-    const permissao = await ImagePicker.requestCameraPermissionsAsync();
-    if (!permissao.granted) {
-      Alert.alert('Permissão necessária', 'Precisamos de acesso à câmara.');
-      return;
-    }
-
-    const resultado = await ImagePicker.launchCameraAsync({
+      mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.7,
@@ -153,92 +135,96 @@ export default function ProfileScreen() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
-      </View>
+      <ScreenContainer>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#007AFF" />
+        </View>
+      </ScreenContainer>
     );
   }
 
   if (!profile) {
     return (
-      <View style={styles.loadingContainer}>
-        <Text>Perfil não encontrado.</Text>
-      </View>
+      <ScreenContainer>
+        <View style={styles.loadingContainer}>
+          <Text>Perfil não encontrado.</Text>
+        </View>
+      </ScreenContainer>
     );
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={escolherFoto} disabled={uploadingFoto}>
-          <View style={styles.avatar}>
-            {uploadingFoto ? (
-              <ActivityIndicator color="#fff" size="large" />
-            ) : fotoURL ? (
-              <Image source={{ uri: fotoURL }} style={styles.avatarImage} />
-            ) : (
-              <Text style={styles.avatarText}>
-                {nome ? nome.charAt(0).toUpperCase() : profile.email.charAt(0).toUpperCase()}
-              </Text>
-            )}
-          </View>
-          <View style={styles.cameraBadge}>
-            <Text style={styles.cameraBadgeText}>📷</Text>
-          </View>
-        </TouchableOpacity>
+    <ScreenContainer>
+      <ScrollView contentContainerStyle={styles.content}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={escolherFoto} disabled={uploadingFoto}>
+            <View style={styles.avatar}>
+              {uploadingFoto ? (
+                <ActivityIndicator color="#fff" size="large" />
+              ) : fotoURL ? (
+                <Image source={{ uri: fotoURL }} style={styles.avatarImage} />
+              ) : (
+                <Text style={styles.avatarText}>
+                  {nome
+                    ? nome.charAt(0).toUpperCase()
+                    : profile.email.charAt(0).toUpperCase()}
+                </Text>
+              )}
+            </View>
+            <View style={styles.cameraBadge}>
+              <Text style={styles.cameraBadgeText}>📷</Text>
+            </View>
+          </TouchableOpacity>
 
-        <Text style={styles.email}>{profile.email}</Text>
-        <View style={styles.roleBadge}>
-          <Text style={styles.roleText}>{profile.role}</Text>
+          <Text style={styles.email}>{profile.email}</Text>
+          <View style={styles.roleBadge}>
+            <Text style={styles.roleText}>{profile.role}</Text>
+          </View>
         </View>
-      </View>
 
-      <View style={styles.form}>
-        <Text style={styles.label}>Nome</Text>
-        <TextInput
-          style={styles.input}
-          value={nome}
-          onChangeText={setNome}
-          placeholder="O teu nome"
-          placeholderTextColor="#999"
-        />
+        <View style={styles.form}>
+          <Text style={styles.label}>Nome</Text>
+          <TextInput
+            style={styles.input}
+            value={nome}
+            onChangeText={setNome}
+            placeholder="O teu nome"
+            placeholderTextColor="#999"
+          />
 
-        <Text style={styles.label}>Bio</Text>
-        <TextInput
-          style={[styles.input, styles.textArea]}
-          value={bio}
-          onChangeText={setBio}
-          placeholder="Fala um pouco sobre ti..."
-          placeholderTextColor="#999"
-          multiline
-          numberOfLines={4}
-        />
+          <Text style={styles.label}>Bio</Text>
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            value={bio}
+            onChangeText={setBio}
+            placeholder="Fala um pouco sobre ti..."
+            placeholderTextColor="#999"
+            multiline
+            numberOfLines={4}
+          />
 
-        <TouchableOpacity
-          style={[styles.saveButton, saving && styles.buttonDisabled]}
-          onPress={guardarAlteracoes}
-          disabled={saving}
-        >
-          {saving ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.saveButtonText}>Guardar alterações</Text>
-          )}
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.saveButton, saving && styles.buttonDisabled]}
+            onPress={guardarAlteracoes}
+            disabled={saving}
+          >
+            {saving ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.saveButtonText}>Guardar alterações</Text>
+            )}
+          </TouchableOpacity>
 
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Text style={styles.logoutButtonText}>Terminar sessão</Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+            <Text style={styles.logoutButtonText}>Terminar sessão</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
   content: {
     padding: 24,
     paddingBottom: 48,
@@ -247,7 +233,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff',
   },
   header: {
     alignItems: 'center',

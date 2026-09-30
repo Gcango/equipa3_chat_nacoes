@@ -99,7 +99,7 @@ export default function RegisterScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <View style={styles.content}>
-        <Text style={styles.title}>Chat_Nações</Text>
+        <Text style={styles.title}>Chat Nações</Text>
         <Text style={styles.subtitle}>Criar conta</Text>
 
         <TextInput

@@ -3,19 +3,28 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
+    Dimensions,
     FlatList,
     Image,
+    NativeScrollEvent,
+    NativeSyntheticEvent,
     RefreshControl,
+    ScrollView,
     StyleSheet,
     Text,
     TouchableOpacity,
     View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { ScreenContainer } from '../../components/ScreenContainer';
 import {
     escutarPosts,
     formatarTempoRelativo,
     Post,
 } from '../../services/posts';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const IMAGE_WIDTH = Math.min(SCREEN_WIDTH - 32, 568);
 
 export default function FeedScreen() {
   const router = useRouter();
@@ -24,27 +33,22 @@ export default function FeedScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    // Escutar posts em tempo real
     const unsubscribe = escutarPosts((lista) => {
       setPosts(lista);
       setLoading(false);
       setRefreshing(false);
     });
-
     return () => unsubscribe();
   }, []);
 
   function onRefresh() {
     setRefreshing(true);
-    // O onSnapshot já vai atualizar automaticamente
-    // Este setRefreshing é só para o efeito visual do pull
     setTimeout(() => setRefreshing(false), 800);
   }
 
   function renderPost({ item }: { item: Post }) {
     return (
       <View style={styles.postCard}>
-        {/* Cabeçalho do post */}
         <View style={styles.postHeader}>
           {item.autorFotoURL ? (
             <Image source={{ uri: item.autorFotoURL }} style={styles.avatar} />
@@ -64,13 +68,17 @@ export default function FeedScreen() {
           </View>
         </View>
 
-        {/* Conteúdo */}
-        <Text style={styles.postConteudo}>{item.conteudo}</Text>
+        {item.conteudo ? (
+          <Text style={styles.postConteudo}>{item.conteudo}</Text>
+        ) : null}
 
-        {/* Ações (por agora só mostra likes, sem botão) */}
+        {item.imagens && item.imagens.length > 0 && (
+          <ImageCarousel imagens={item.imagens} />
+        )}
+
         <View style={styles.postFooter}>
           <View style={styles.postAction}>
-            <Ionicons name="heart-outline" size={20} color="#666" />
+            <Ionicons name="heart-outline" size={22} color="#666" />
             <Text style={styles.postActionText}>{item.likes || 0}</Text>
           </View>
           <View style={styles.postAction}>
@@ -84,65 +92,128 @@ export default function FeedScreen() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
-      </View>
+      <ScreenContainer>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#007AFF" />
+        </View>
+      </ScreenContainer>
     );
   }
 
   return (
-    <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Chat_Nações</Text>
-        <TouchableOpacity
-          style={styles.headerButton}
-          onPress={() => router.push('/(tabs)/create-post')}
-        >
-          <Ionicons name="add-circle-outline" size={28} color="#007AFF" />
-        </TouchableOpacity>
-      </View>
-
-      {/* Lista de posts */}
-      {posts.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Ionicons name="newspaper-outline" size={64} color="#ccc" />
-          <Text style={styles.emptyTitle}>Ainda não há publicações</Text>
-          <Text style={styles.emptySubtitle}>
-            Sê o primeiro a publicar algo!
-          </Text>
+    <ScreenContainer>
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <View style={styles.header}>
+          <View style={styles.headerSpacer} />
+          <Text style={styles.headerTitle}>Chat Nações</Text>
           <TouchableOpacity
-            style={styles.emptyButton}
+            style={styles.headerButton}
             onPress={() => router.push('/(tabs)/create-post')}
           >
-            <Text style={styles.emptyButtonText}>Criar publicação</Text>
+            <Ionicons name="add-circle-outline" size={28} color="#007AFF" />
           </TouchableOpacity>
         </View>
-      ) : (
-        <FlatList
-          data={posts}
-          keyExtractor={(item) => item.id}
-          renderItem={renderPost}
-          contentContainerStyle={styles.listContent}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-        />
-      )}
+
+        {posts.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="newspaper-outline" size={64} color="#ccc" />
+            <Text style={styles.emptyTitle}>Ainda não há publicações</Text>
+            <Text style={styles.emptySubtitle}>
+              Sê o primeiro a publicar algo!
+            </Text>
+            <TouchableOpacity
+              style={styles.emptyButton}
+              onPress={() => router.push('/(tabs)/create-post')}
+            >
+              <Text style={styles.emptyButtonText}>Criar publicação</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <FlatList
+            data={posts}
+            keyExtractor={(item) => item.id}
+            renderItem={renderPost}
+            contentContainerStyle={styles.listContent}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            }
+          />
+        )}
+      </SafeAreaView>
+    </ScreenContainer>
+  );
+}
+
+function ImageCarousel({ imagens }: { imagens: string[] }) {
+  const [indexAtivo, setIndexAtivo] = useState(0);
+
+  if (imagens.length === 1) {
+    return (
+      <Image
+        source={{ uri: imagens[0] }}
+        style={styles.imagemUnica}
+        resizeMode="cover"
+      />
+    );
+  }
+
+  function onScroll(event: NativeSyntheticEvent<NativeScrollEvent>) {
+    const offsetX = event.nativeEvent.contentOffset.x;
+    const index = Math.round(offsetX / IMAGE_WIDTH);
+    setIndexAtivo(index);
+  }
+
+  return (
+    <View style={styles.carouselContainer}>
+      <ScrollView
+        horizontal
+        pagingEnabled
+        snapToInterval={IMAGE_WIDTH}
+        decelerationRate="fast"
+        showsHorizontalScrollIndicator={false}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+      >
+        {imagens.map((uri, i) => (
+          <Image
+            key={i}
+            source={{ uri }}
+            style={styles.imagemCarousel}
+            resizeMode="cover"
+          />
+        ))}
+      </ScrollView>
+
+      <View style={styles.indicators}>
+        {imagens.map((_, i) => (
+          <View
+            key={i}
+            style={[
+              styles.indicator,
+              i === indexAtivo && styles.indicatorActive,
+            ]}
+          />
+        ))}
+      </View>
+
+      <View style={styles.imageCounter}>
+        <Text style={styles.imageCounterText}>
+          {indexAtivo + 1}/{imagens.length}
+        </Text>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#fff',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff',
   },
   header: {
     flexDirection: 'row',
@@ -154,10 +225,15 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
   },
+  headerSpacer: {
+    width: 36,
+  },
   headerTitle: {
+    flex: 1,
     fontSize: 22,
     fontWeight: 'bold',
     color: '#1a1a1a',
+    textAlign: 'center',
   },
   headerButton: {
     padding: 4,
@@ -212,6 +288,52 @@ const styles = StyleSheet.create({
     color: '#333',
     lineHeight: 22,
     marginBottom: 12,
+  },
+  imagemUnica: {
+    width: '100%',
+    height: 280,
+    borderRadius: 8,
+    marginBottom: 12,
+    backgroundColor: '#f0f0f0',
+  },
+  carouselContainer: {
+    position: 'relative',
+    marginBottom: 12,
+  },
+  imagemCarousel: {
+    width: IMAGE_WIDTH,
+    height: 280,
+    borderRadius: 8,
+    backgroundColor: '#f0f0f0',
+  },
+  indicators: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 8,
+  },
+  indicator: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#ccc',
+  },
+  indicatorActive: {
+    backgroundColor: '#007AFF',
+  },
+  imageCounter: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  imageCounterText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
   },
   postFooter: {
     flexDirection: 'row',

@@ -1,7 +1,36 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
+import { Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Sidebar } from '../../components/Sidebar';
+
+const DESKTOP_BREAKPOINT = 768;
 
 export default function TabsLayout() {
+  const { width } = useWindowDimensions();
+  const isDesktop = Platform.OS === 'web' && width >= DESKTOP_BREAKPOINT;
+
+  if (isDesktop) {
+    return (
+      <View style={styles.desktopContainer}>
+        <Sidebar />
+        <View style={styles.content}>
+          <Tabs
+            screenOptions={{
+              headerShown: false,
+              tabBarStyle: { display: 'none' },
+            }}
+          >
+            <Tabs.Screen name="feed" />
+            <Tabs.Screen name="reels" />
+            <Tabs.Screen name="profile" />
+            <Tabs.Screen name="notifications" />
+            <Tabs.Screen name="create-post" options={{ href: null }} />
+          </Tabs>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <Tabs
       screenOptions={{
@@ -24,6 +53,15 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="reels"
+        options={{
+          title: 'Reels',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="videocam-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
           title: 'Perfil',
@@ -41,13 +79,18 @@ export default function TabsLayout() {
           ),
         }}
       />
-      {/* Rota oculta — não aparece na tab bar */}
-      <Tabs.Screen
-        name="create-post"
-        options={{
-          href: null,
-        }}
-      />
+      <Tabs.Screen name="create-post" options={{ href: null }} />
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  desktopContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    backgroundColor: '#f0f2f5',
+  },
+  content: {
+    flex: 1,
+  },
+});
