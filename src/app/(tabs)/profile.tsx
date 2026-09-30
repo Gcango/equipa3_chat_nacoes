@@ -1,22 +1,25 @@
+import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { signOut } from 'firebase/auth';
 import { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { auth } from '../../services/firebase';
+import { uploadFotoPerfil } from '../../services/storage';
 import {
-    getUserProfile,
-    marcarEmailVerificado,
-    updateUserProfile,
-    UserProfile,
+  getUserProfile,
+  marcarEmailVerificado,
+  updateUserProfile,
+  UserProfile,
 } from '../../services/users';
 
 export default function ProfileScreen() {
@@ -24,8 +27,10 @@ export default function ProfileScreen() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [nome, setNome] = useState('');
   const [bio, setBio] = useState('');
+  const [fotoURL, setFotoURL] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingFoto, setUploadingFoto] = useState(false);
 
   useEffect(() => {
     carregarPerfil();
@@ -39,7 +44,6 @@ export default function ProfileScreen() {
         return;
       }
 
-      // Se o email está verificado no Firebase mas ainda não no Firestore, atualiza
       if (user.emailVerified) {
         await marcarEmailVerificado(user.uid);
       }
@@ -49,12 +53,72 @@ export default function ProfileScreen() {
         setProfile({ ...dados, emailVerificado: user.emailVerified });
         setNome(dados.nome || '');
         setBio(dados.bio || '');
+        setFotoURL(dados.fotoURL || '');
       }
     } catch (error) {
       Alert.alert('Erro', 'Não foi possível carregar o perfil.');
       console.error(error);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function escolherFoto() {
+  await abrirGaleria();
+}
+
+  async function abrirGaleria() {
+    const permissao = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permissao.granted) {
+      Alert.alert('Permissão necessária', 'Precisamos de acesso à galeria.');
+      return;
+    }
+
+    const resultado = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+
+    if (!resultado.canceled && resultado.assets[0]) {
+      await processarFoto(resultado.assets[0].uri);
+    }
+  }
+
+  async function abrirCamera() {
+    const permissao = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permissao.granted) {
+      Alert.alert('Permissão necessária', 'Precisamos de acesso à câmara.');
+      return;
+    }
+
+    const resultado = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+
+    if (!resultado.canceled && resultado.assets[0]) {
+      await processarFoto(resultado.assets[0].uri);
+    }
+  }
+
+  async function processarFoto(uri: string) {
+    if (!profile) return;
+
+    setUploadingFoto(true);
+    try {
+      const url = await uploadFotoPerfil(profile.uid, uri);
+      await updateUserProfile(profile.uid, { fotoURL: url });
+      setFotoURL(url);
+      setProfile({ ...profile, fotoURL: url });
+      Alert.alert('Sucesso', 'Foto de perfil atualizada!');
+    } catch (error) {
+      Alert.alert('Erro', 'Não foi possível atualizar a foto.');
+      console.error(error);
+    } finally {
+      setUploadingFoto(false);
     }
   }
 
@@ -106,11 +170,23 @@ export default function ProfileScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.header}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
-            {nome ? nome.charAt(0).toUpperCase() : profile.email.charAt(0).toUpperCase()}
-          </Text>
-        </View>
+        <TouchableOpacity onPress={escolherFoto} disabled={uploadingFoto}>
+          <View style={styles.avatar}>
+            {uploadingFoto ? (
+              <ActivityIndicator color="#fff" size="large" />
+            ) : fotoURL ? (
+              <Image source={{ uri: fotoURL }} style={styles.avatarImage} />
+            ) : (
+              <Text style={styles.avatarText}>
+                {nome ? nome.charAt(0).toUpperCase() : profile.email.charAt(0).toUpperCase()}
+              </Text>
+            )}
+          </View>
+          <View style={styles.cameraBadge}>
+            <Text style={styles.cameraBadgeText}>📷</Text>
+          </View>
+        </TouchableOpacity>
+
         <Text style={styles.email}>{profile.email}</Text>
         <View style={styles.roleBadge}>
           <Text style={styles.roleText}>{profile.role}</Text>
@@ -179,22 +255,43 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   avatar: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
     backgroundColor: '#007AFF',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
   },
   avatarText: {
     color: '#fff',
-    fontSize: 40,
+    fontSize: 48,
     fontWeight: 'bold',
+  },
+  cameraBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: '#fff',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#007AFF',
+  },
+  cameraBadgeText: {
+    fontSize: 18,
   },
   email: {
     fontSize: 14,
     color: '#666',
+    marginTop: 16,
     marginBottom: 8,
   },
   roleBadge: {

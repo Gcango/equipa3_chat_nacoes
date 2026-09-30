@@ -2,6 +2,7 @@ import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
 import { getApp, getApps, initializeApp } from 'firebase/app';
 import { initializeAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
 // @ts-ignore — o Firebase v12 removeu isto dos tipos, mas existe em runtime
 import { getReactNativePersistence } from '@firebase/auth/dist/rn/index.js';
 
@@ -22,7 +23,7 @@ export const auth = initializeAuth(app, {
   persistence: getReactNativePersistence(ReactNativeAsyncStorage),
 });
 
-// Exporta a instância do Firestore
 export const db = getFirestore(app);
+export const storage = getStorage(app);
 
 export default app;
