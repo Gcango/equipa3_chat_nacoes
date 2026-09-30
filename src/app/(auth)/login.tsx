@@ -61,7 +61,7 @@ export default function LoginScreen() {
       }
 
       // Login com sucesso ✅
-      Alert.alert('Bem-vindo!', 'Login com sucesso.');
+        router.replace('/(tabs)/profile');
       // router.replace('/(tabs)'); // descomentar quando o feed estiver criado
     } catch (error: any) {
       let mensagem = 'Ocorreu um erro. Tenta novamente.';
