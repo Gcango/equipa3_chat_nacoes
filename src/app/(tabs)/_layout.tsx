@@ -41,6 +41,13 @@ export default function TabsLayout() {
           ),
         }}
       />
+      {/* Rota oculta — não aparece na tab bar */}
+      <Tabs.Screen
+        name="create-post"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }
