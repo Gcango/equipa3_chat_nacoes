@@ -1,16 +1,29 @@
 import {
-    addDoc,
-    collection,
-    deleteDoc,
-    doc,
-    onSnapshot,
-    orderBy,
-    query,
-    serverTimestamp,
-    Timestamp,
+  addDoc,
+  arrayRemove,
+  arrayUnion,
+  collection,
+  deleteDoc,
+  doc,
+  onSnapshot,
+  orderBy,
+  query,
+  serverTimestamp,
+  Timestamp,
+  updateDoc,
 } from 'firebase/firestore';
 import { auth, db } from './firebase';
 import { getUserProfile } from './users';
+
+export interface Resposta {
+  id: string;
+  autorId: string;
+  autorNome: string;
+  autorFotoURL: string;
+  autorRole: string;
+  texto: string;
+  criadoEm: any; // Timestamp do Firestore
+}
 
 export interface Comentario {
   id: string;
@@ -20,6 +33,7 @@ export interface Comentario {
   autorRole: string;
   texto: string;
   criadoEm: Timestamp | null;
+  respostas: Resposta[];
 }
 
 /**
@@ -43,11 +57,12 @@ export async function criarComentario(
     autorRole: perfil.role || 'aluno',
     texto: texto.trim(),
     criadoEm: serverTimestamp(),
+    respostas: [],
   });
 }
 
 /**
- * Escuta comentários em tempo real (mais antigo primeiro)
+ * Escuta comentários em tempo real
  */
 export function escutarComentarios(
   postId: string,
@@ -59,10 +74,14 @@ export function escutarComentarios(
   const unsubscribe = onSnapshot(
     q,
     (snapshot) => {
-      const lista: Comentario[] = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Comentario[];
+      const lista: Comentario[] = snapshot.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          respostas: data.respostas || [],
+        } as Comentario;
+      });
       callback(lista);
     },
     (error) => {
@@ -85,7 +104,7 @@ export async function apagarComentario(
 }
 
 /**
- * Conta comentários em tempo real (para mostrar no feed)
+ * Conta comentários (para o feed)
  */
 export function escutarContagemComentarios(
   postId: string,
@@ -96,4 +115,48 @@ export function escutarContagemComentarios(
     callback(snapshot.size);
   });
   return unsubscribe;
+}
+
+/**
+ * Adiciona uma resposta a um comentário
+ */
+export async function responderComentario(
+  postId: string,
+  comentarioId: string,
+  texto: string
+): Promise<void> {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Utilizador não autenticado');
+
+  const perfil = await getUserProfile(user.uid);
+  if (!perfil) throw new Error('Perfil não encontrado');
+
+  const novaResposta: Resposta = {
+    id: `${Date.now()}_${user.uid.slice(0, 6)}`,
+    autorId: user.uid,
+    autorNome: perfil.nome || user.email?.split('@')[0] || 'Utilizador',
+    autorFotoURL: perfil.fotoURL || '',
+    autorRole: perfil.role || 'aluno',
+    texto: texto.trim(),
+    criadoEm: new Date().toISOString(),
+  };
+
+  const comentarioRef = doc(db, 'posts', postId, 'comentarios', comentarioId);
+  await updateDoc(comentarioRef, {
+    respostas: arrayUnion(novaResposta),
+  });
+}
+
+/**
+ * Apaga uma resposta
+ */
+export async function apagarResposta(
+  postId: string,
+  comentarioId: string,
+  resposta: Resposta
+): Promise<void> {
+  const comentarioRef = doc(db, 'posts', postId, 'comentarios', comentarioId);
+  await updateDoc(comentarioRef, {
+    respostas: arrayRemove(resposta),
+  });
 }
