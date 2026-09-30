@@ -82,7 +82,7 @@ export default function FeedScreen() {
 
         <View style={styles.postFooter}>
           <LikeButton post={item} />
-          <CommentButton postId={item.id} />
+          <CommentButton postId={item.id} postAutorId={item.autorId} />
         </View>
       </View>
     );
@@ -249,7 +249,13 @@ function LikeButton({ post }: { post: Post }) {
   );
 }
 
-function CommentButton({ postId }: { postId: string }) {
+function CommentButton({
+  postId,
+  postAutorId,
+}: {
+  postId: string;
+  postAutorId: string;
+}) {
   const router = useRouter();
   const [total, setTotal] = useState(0);
 
@@ -261,7 +267,11 @@ function CommentButton({ postId }: { postId: string }) {
   return (
     <TouchableOpacity
       style={styles.postAction}
-      onPress={() => router.push(`/(tabs)/comments/${postId}` as any)}
+      onPress={() =>
+        router.push(
+          `/(tabs)/comments/${postId}?postAutorId=${postAutorId}` as any
+        )
+      }
     >
       <Ionicons name="chatbubble-outline" size={20} color="#666" />
       <Text style={styles.postActionText}>{total}</Text>
