@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { usePathname, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 interface SidebarItem {
   name: string;
@@ -11,10 +11,10 @@ interface SidebarItem {
 }
 
 const ITEMS: SidebarItem[] = [
-  { name: 'feed', label: 'Feed', icon: 'home-outline', route: '/(tabs)/feed' },
+  { name: 'feed', label: 'Página inicial', icon: 'home-outline', route: '/(tabs)/feed' },
   { name: 'reels', label: 'Reels', icon: 'videocam-outline', route: '/(tabs)/reels' },
-  { name: 'profile', label: 'Perfil', icon: 'person-outline', route: '/(tabs)/profile' },
   { name: 'notifications', label: 'Notificações', icon: 'notifications-outline', route: '/(tabs)/notifications' },
+  { name: 'profile', label: 'Perfil', icon: 'person-outline', route: '/(tabs)/profile' },
 ];
 
 const COLLAPSED_WIDTH = 80;
@@ -40,13 +40,14 @@ export function Sidebar() {
       onMouseEnter={() => setExpanded(true)}
       onMouseLeave={() => setExpanded(false)}
     >
-      {/* Título */}
+      {/* Logo */}
       <View style={styles.header}>
-        {expanded ? (
-          <Text style={styles.headerTitle}>Chat Nações</Text>
-        ) : (
-          <Text style={styles.headerTitleShort}>CN</Text>
-        )}
+        <Image
+          source={require('../../assets/images/ChatNacoes.png')}
+          style={expanded ? styles.logo : styles.logoSmall}
+          resizeMode="contain"
+        />
+        {expanded && <Text style={styles.headerTitle}>Chat Nações</Text>}
       </View>
 
       {/* Itens */}
@@ -91,37 +92,41 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRightWidth: 1,
     borderRightColor: '#eee',
-    paddingTop: 32,
+    paddingTop: 24,
     paddingHorizontal: 12,
     height: '100%',
-    // transição suave no web
     ...({ transitionDuration: '200ms' } as any),
   },
   header: {
     alignItems: 'center',
-    marginBottom: 40,
-    minHeight: 40,
+    marginBottom: 32,
+    minHeight: 60,
     justifyContent: 'center',
   },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#007AFF',
-    textAlign: 'center',
+  logoSmall: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
   },
-  headerTitleShort: {
-    fontSize: 22,
+  logo: {
+    width: 72,
+    height: 72,
+    borderRadius: 16,
+    marginBottom: 8,
+  },
+  headerTitle: {
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#007AFF',
     textAlign: 'center',
   },
   menu: {
-    gap: 16, // ← mais espaço entre itens
+    gap: 16,
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center', // quando colapsado, ícone ao centro
+    justifyContent: 'center',
     paddingVertical: 14,
     paddingHorizontal: 12,
     borderRadius: 10,
