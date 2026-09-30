@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenContainer } from '../../components/ScreenContainer';
+import { escutarContagemComentarios } from '../../services/comments';
 import { auth } from '../../services/firebase';
 import {
     addLike,
@@ -81,10 +82,7 @@ export default function FeedScreen() {
 
         <View style={styles.postFooter}>
           <LikeButton post={item} />
-          <View style={styles.postAction}>
-            <Ionicons name="chatbubble-outline" size={20} color="#666" />
-            <Text style={styles.postActionText}>0</Text>
-          </View>
+          <CommentButton postId={item.id} />
         </View>
       </View>
     );
@@ -247,6 +245,26 @@ function LikeButton({ post }: { post: Post }) {
       >
         {total}
       </Text>
+    </TouchableOpacity>
+  );
+}
+
+function CommentButton({ postId }: { postId: string }) {
+  const router = useRouter();
+  const [total, setTotal] = useState(0);
+
+  useEffect(() => {
+    const unsubscribe = escutarContagemComentarios(postId, setTotal);
+    return () => unsubscribe();
+  }, [postId]);
+
+  return (
+    <TouchableOpacity
+      style={styles.postAction}
+      onPress={() => router.push(`/(tabs)/comments/${postId}` as any)}
+    >
+      <Ionicons name="chatbubble-outline" size={20} color="#666" />
+      <Text style={styles.postActionText}>{total}</Text>
     </TouchableOpacity>
   );
 }
