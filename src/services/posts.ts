@@ -1,5 +1,7 @@
 import {
   addDoc,
+  arrayRemove,
+  arrayUnion,
   collection,
   deleteDoc,
   doc,
@@ -8,6 +10,7 @@ import {
   query,
   serverTimestamp,
   Timestamp,
+  updateDoc,
 } from 'firebase/firestore';
 import { auth, db } from './firebase';
 import { uploadImagensPost } from './storage';
@@ -20,15 +23,13 @@ export interface Post {
   autorFotoURL: string;
   autorRole: string;
   conteudo: string;
-  imagens: string[]; // URLs das imagens
-  likes: number;
+  imagens: string[];
+  curtidas: string[];
   criadoEm: Timestamp | null;
 }
 
 /**
- * Cria uma nova publicação (com ou sem imagens)
- * @param conteudo - Texto do post
- * @param imagensLocais - URIs locais das imagens (para upload)
+ * Cria uma nova publicação
  */
 export async function criarPost(
   conteudo: string,
@@ -40,7 +41,6 @@ export async function criarPost(
   const perfil = await getUserProfile(user.uid);
   if (!perfil) throw new Error('Perfil não encontrado');
 
-  // 1. Criar o post primeiro (sem imagens) para obter o ID
   const postsRef = collection(db, 'posts');
   const docRef = await addDoc(postsRef, {
     autorId: user.uid,
@@ -49,14 +49,12 @@ export async function criarPost(
     autorRole: perfil.role || 'aluno',
     conteudo: conteudo.trim(),
     imagens: [],
-    likes: 0,
+    curtidas: [],
     criadoEm: serverTimestamp(),
   });
 
-  // 2. Se houver imagens, fazer upload e atualizar o post
   if (imagensLocais.length > 0) {
     const urls = await uploadImagensPost(user.uid, imagensLocais, docRef.id);
-    const { updateDoc } = await import('firebase/firestore');
     await updateDoc(docRef, { imagens: urls });
   }
 }
@@ -77,6 +75,7 @@ export function escutarPosts(callback: (posts: Post[]) => void): () => void {
           id: doc.id,
           ...data,
           imagens: data.imagens || [],
+          curtidas: data.curtidas || [],
         } as Post;
       });
       callback(lista);
@@ -98,7 +97,33 @@ export async function apagarPost(postId: string): Promise<void> {
 }
 
 /**
- * Converte timestamp em texto relativo
+ * Adiciona um like (uid entra no array 'curtidas')
+ */
+export async function addLike(postId: string): Promise<void> {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Utilizador não autenticado');
+
+  const postRef = doc(db, 'posts', postId);
+  await updateDoc(postRef, {
+    curtidas: arrayUnion(user.uid),
+  });
+}
+
+/**
+ * Remove um like (uid sai do array 'curtidas')
+ */
+export async function removeLike(postId: string): Promise<void> {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Utilizador não autenticado');
+
+  const postRef = doc(db, 'posts', postId);
+  await updateDoc(postRef, {
+    curtidas: arrayRemove(user.uid),
+  });
+}
+
+/**
+ * Converte timestamp em texto relativo ("há 5 min")
  */
 export function formatarTempoRelativo(timestamp: Timestamp | null): string {
   if (!timestamp) return 'agora';

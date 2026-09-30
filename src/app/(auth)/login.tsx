@@ -16,6 +16,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { ScreenContainer } from '../../components/ScreenContainer';
 import { auth } from '../../services/firebase';
 
 export default function LoginScreen() {
@@ -40,9 +41,7 @@ export default function LoginScreen() {
 
       const user = userCredential.user;
 
-      // Bloquear se o email não estiver verificado
       if (!user.emailVerified) {
-        // Reenviar email de verificação
         try {
           await sendEmailVerification(user);
         } catch (e) {
@@ -60,9 +59,7 @@ export default function LoginScreen() {
         return;
       }
 
-      // Login com sucesso ✅
-        router.replace('/(tabs)/profile');
-      // router.replace('/(tabs)'); // descomentar quando o feed estiver criado
+      router.replace('/(tabs)/profile');
     } catch (error: any) {
       let mensagem = 'Ocorreu um erro. Tenta novamente.';
 
@@ -86,63 +83,67 @@ export default function LoginScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <View style={styles.content}>
-        <Text style={styles.title}>Chat_Nações</Text>
-        <Text style={styles.subtitle}>Entrar</Text>
+    <ScreenContainer>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <View style={styles.content}>
+          <Text style={styles.title}>Chat Nações</Text>
+          <Text style={styles.subtitle}>Entrar</Text>
 
-        <TextInput
-          style={styles.input}
-          placeholder="Email escolar"
-          placeholderTextColor="#888"
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          autoComplete="email"
-        />
+          <TextInput
+            style={styles.input}
+            placeholder="Email escolar"
+            placeholderTextColor="#888"
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            autoComplete="email"
+          />
 
-        <TextInput
-          style={styles.input}
-          placeholder="Password"
-          placeholderTextColor="#888"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
+          <TextInput
+            style={styles.input}
+            placeholder="Password"
+            placeholderTextColor="#888"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+          />
 
-        <TouchableOpacity
-          style={[styles.button, loading && styles.buttonDisabled]}
-          onPress={handleLogin}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Entrar</Text>
-          )}
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.button, loading && styles.buttonDisabled]}
+            onPress={handleLogin}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>Entrar</Text>
+            )}
+          </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => router.push('/(auth)/register')}>
-          <Text style={styles.link}>Ainda não tens conta? Regista-te</Text>
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+          <TouchableOpacity onPress={() => router.push('/(auth)/register')}>
+            <Text style={styles.link}>Ainda não tens conta? Regista-te</Text>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
   },
   content: {
     flex: 1,
     padding: 24,
     justifyContent: 'center',
+    maxWidth: 400,
+    width: '100%',
+    alignSelf: 'center',
   },
   title: {
     fontSize: 32,

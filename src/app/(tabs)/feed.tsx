@@ -17,10 +17,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenContainer } from '../../components/ScreenContainer';
+import { auth } from '../../services/firebase';
 import {
+    addLike,
     escutarPosts,
     formatarTempoRelativo,
     Post,
+    removeLike,
 } from '../../services/posts';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -77,10 +80,7 @@ export default function FeedScreen() {
         )}
 
         <View style={styles.postFooter}>
-          <View style={styles.postAction}>
-            <Ionicons name="heart-outline" size={22} color="#666" />
-            <Text style={styles.postActionText}>{item.likes || 0}</Text>
-          </View>
+          <LikeButton post={item} />
           <View style={styles.postAction}>
             <Ionicons name="chatbubble-outline" size={20} color="#666" />
             <Text style={styles.postActionText}>0</Text>
@@ -202,6 +202,52 @@ function ImageCarousel({ imagens }: { imagens: string[] }) {
         </Text>
       </View>
     </View>
+  );
+}
+
+function LikeButton({ post }: { post: Post }) {
+  const uid = auth.currentUser?.uid;
+  const [loading, setLoading] = useState(false);
+
+  const curtiu = uid ? post.curtidas.includes(uid) : false;
+  const total = post.curtidas.length;
+
+  async function handlePress() {
+    if (loading) return;
+    setLoading(true);
+    try {
+      if (curtiu) {
+        await removeLike(post.id);
+      } else {
+        await addLike(post.id);
+      }
+    } catch (error) {
+      console.error('Erro ao curtir:', error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <TouchableOpacity
+      style={styles.postAction}
+      onPress={handlePress}
+      disabled={loading}
+    >
+      <Ionicons
+        name={curtiu ? 'heart' : 'heart-outline'}
+        size={22}
+        color={curtiu ? '#ff3b30' : '#666'}
+      />
+      <Text
+        style={[
+          styles.postActionText,
+          curtiu && { color: '#ff3b30', fontWeight: '600' },
+        ]}
+      >
+        {total}
+      </Text>
+    </TouchableOpacity>
   );
 }
 

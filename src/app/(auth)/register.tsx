@@ -16,6 +16,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { ScreenContainer } from '../../components/ScreenContainer';
 import { auth } from '../../services/firebase';
 
 const DOMINIO_ESCOLA = '@epfundao.edu.pt';
@@ -32,7 +33,6 @@ export default function RegisterScreen() {
       return;
     }
 
-    // Validação do domínio (feedback rápido, sem mencionar o domínio)
     if (!email.toLowerCase().endsWith(DOMINIO_ESCOLA)) {
       Alert.alert('Email inválido', 'Verifica o teu email escolar.');
       return;
@@ -51,12 +51,10 @@ export default function RegisterScreen() {
         password
       );
 
-      // Enviar email de verificação
       if (userCredential.user) {
         await sendEmailVerification(userCredential.user);
       }
 
-      // Deslogar imediatamente (ainda não está verificado)
       await signOut(auth);
 
       Alert.alert(
@@ -94,63 +92,67 @@ export default function RegisterScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <View style={styles.content}>
-        <Text style={styles.title}>Chat Nações</Text>
-        <Text style={styles.subtitle}>Criar conta</Text>
+    <ScreenContainer>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <View style={styles.content}>
+          <Text style={styles.title}>Chat Nações</Text>
+          <Text style={styles.subtitle}>Criar conta</Text>
 
-        <TextInput
-          style={styles.input}
-          placeholder="Email escolar"
-          placeholderTextColor="#888"
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          autoComplete="email"
-        />
+          <TextInput
+            style={styles.input}
+            placeholder="Email escolar"
+            placeholderTextColor="#888"
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            autoComplete="email"
+          />
 
-        <TextInput
-          style={styles.input}
-          placeholder="Password"
-          placeholderTextColor="#888"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
+          <TextInput
+            style={styles.input}
+            placeholder="Password"
+            placeholderTextColor="#888"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+          />
 
-        <TouchableOpacity
-          style={[styles.button, loading && styles.buttonDisabled]}
-          onPress={handleRegister}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Criar conta</Text>
-          )}
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.button, loading && styles.buttonDisabled]}
+            onPress={handleRegister}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>Criar conta</Text>
+            )}
+          </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
-          <Text style={styles.link}>Já tens conta? Faz login</Text>
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+          <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
+            <Text style={styles.link}>Já tens conta? Faz login</Text>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
   },
   content: {
     flex: 1,
     padding: 24,
     justifyContent: 'center',
+    maxWidth: 400,
+    width: '100%',
+    alignSelf: 'center',
   },
   title: {
     fontSize: 32,
