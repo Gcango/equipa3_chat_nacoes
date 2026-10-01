@@ -1,39 +1,40 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { useEffect, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Dimensions,
-    Image,
-    KeyboardAvoidingView,
-    NativeScrollEvent,
-    NativeSyntheticEvent,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  Image,
+  KeyboardAvoidingView,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { ReportModal } from '../../components/ReportModal';
 import {
-    apagarComentario,
-    apagarResposta,
-    Comentario,
-    criarComentario,
-    escutarComentarios,
-    responderComentario,
-    Resposta,
+  apagarComentario,
+  apagarResposta,
+  Comentario,
+  criarComentario,
+  escutarComentarios,
+  responderComentario,
+  Resposta,
 } from '../../services/comments';
 import { auth, db } from '../../services/firebase';
 import {
-    addLike,
-    formatarTempoRelativo,
-    Post,
-    removeLike,
+  addLike,
+  formatarTempoRelativo,
+  Post,
+  removeLike,
 } from '../../services/posts';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -80,10 +81,17 @@ export default function PostDetailScreen() {
     nomeAutor: string;
   } | null>(null);
 
+  const [reportModalVisivel, setReportModalVisivel] = useState(false);
+  const [reportAlvo, setReportAlvo] = useState<{
+    tipo: 'post' | 'comentario' | 'resposta';
+    alvoId: string;
+    conteudo: string;
+  } | null>(null);
+
   const scrollRef = useRef<ScrollView>(null);
   const inputRef = useRef<TextInput>(null);
 
-  // Carregar post
+  // Carregar post inicial
   useEffect(() => {
     if (!postId) return;
 
@@ -109,11 +117,10 @@ export default function PostDetailScreen() {
     carregarPost();
   }, [postId]);
 
-  // Escutar post em tempo real (para likes)
+  // Escutar post em tempo real (likes)
   useEffect(() => {
     if (!postId) return;
-    const { onSnapshot } = require('firebase/firestore');
-    const unsub = onSnapshot(doc(db, 'posts', postId), (snap: any) => {
+    const unsub = onSnapshot(doc(db, 'posts', postId), (snap) => {
       if (snap.exists()) {
         const data = snap.data();
         setPost((prev) =>
@@ -132,6 +139,15 @@ export default function PostDetailScreen() {
     const unsub = escutarComentarios(postId, setComentarios);
     return () => unsub();
   }, [postId]);
+
+  function abrirDenuncia(
+    tipo: 'post' | 'comentario' | 'resposta',
+    alvoId: string,
+    conteudo: string
+  ) {
+    setReportAlvo({ tipo, alvoId, conteudo });
+    setReportModalVisivel(true);
+  }
 
   async function toggleLike() {
     if (!post) return;
@@ -257,14 +273,24 @@ export default function PostDetailScreen() {
           <Text style={styles.comentarioTexto}>{resposta.texto}</Text>
         </View>
 
-        {possoApagar && (
+        <View style={styles.commentActions}>
           <TouchableOpacity
             style={styles.moreButton}
-            onPress={() => handleApagarResposta(comentario, resposta)}
+            onPress={() =>
+              abrirDenuncia('resposta', resposta.id, resposta.texto)
+            }
           >
-            <Ionicons name="ellipsis-horizontal" size={16} color="#999" />
+            <Ionicons name="flag-outline" size={14} color="#999" />
           </TouchableOpacity>
-        )}
+          {possoApagar && (
+            <TouchableOpacity
+              style={styles.moreButton}
+              onPress={() => handleApagarResposta(comentario, resposta)}
+            >
+              <Ionicons name="ellipsis-horizontal" size={16} color="#999" />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
     );
   }
@@ -321,14 +347,22 @@ export default function PostDetailScreen() {
             )}
           </View>
 
-          {possoApagar && (
+          <View style={styles.commentActions}>
             <TouchableOpacity
               style={styles.moreButton}
-              onPress={() => handleApagarComentario(item)}
+              onPress={() => abrirDenuncia('comentario', item.id, item.texto)}
             >
-              <Ionicons name="ellipsis-horizontal" size={18} color="#999" />
+              <Ionicons name="flag-outline" size={16} color="#999" />
             </TouchableOpacity>
-          )}
+            {possoApagar && (
+              <TouchableOpacity
+                style={styles.moreButton}
+                onPress={() => handleApagarComentario(item)}
+              >
+                <Ionicons name="ellipsis-horizontal" size={18} color="#999" />
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       </View>
     );
@@ -348,7 +382,10 @@ export default function PostDetailScreen() {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.backBtn}
+          >
             <Ionicons name="chevron-back" size={26} color="#1a1a1a" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Publicação</Text>
@@ -382,32 +419,47 @@ export default function PostDetailScreen() {
         <ScrollView ref={scrollRef} contentContainerStyle={styles.scroll}>
           {/* Post */}
           <View style={styles.postCard}>
-            <TouchableOpacity
-              style={styles.postHeader}
-              onPress={() =>
-                router.push(`/(tabs)/user/${post.autorId}` as any)
-              }
-              activeOpacity={0.7}
-            >
-              {post.autorFotoURL ? (
-                <Image
-                  source={{ uri: post.autorFotoURL }}
-                  style={styles.avatar}
-                />
-              ) : (
-                <View style={[styles.avatar, styles.avatarFallback]}>
-                  <Text style={styles.avatarFallbackText}>
-                    {post.autorNome.charAt(0).toUpperCase()}
+            <View style={styles.postHeader}>
+              <TouchableOpacity
+                style={styles.postHeaderLeft}
+                onPress={() =>
+                  router.push(`/(tabs)/user/${post.autorId}` as any)
+                }
+                activeOpacity={0.7}
+              >
+                {post.autorFotoURL ? (
+                  <Image
+                    source={{ uri: post.autorFotoURL }}
+                    style={styles.avatar}
+                  />
+                ) : (
+                  <View style={[styles.avatar, styles.avatarFallback]}>
+                    <Text style={styles.avatarFallbackText}>
+                      {post.autorNome.charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                )}
+                <View style={styles.postHeaderInfo}>
+                  <Text style={styles.postAuthorNome}>{post.autorNome}</Text>
+                  <Text style={styles.postMeta}>
+                    {post.autorRole} · {formatarTempoRelativo(post.criadoEm)}
                   </Text>
                 </View>
-              )}
-              <View style={styles.postHeaderInfo}>
-                <Text style={styles.postAuthorNome}>{post.autorNome}</Text>
-                <Text style={styles.postMeta}>
-                  {post.autorRole} · {formatarTempoRelativo(post.criadoEm)}
-                </Text>
-              </View>
-            </TouchableOpacity>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.reportBtn}
+                onPress={() =>
+                  abrirDenuncia(
+                    'post',
+                    post.id,
+                    post.conteudo || '[Publicação com imagens]'
+                  )
+                }
+              >
+                <Ionicons name="flag-outline" size={20} color="#999" />
+              </TouchableOpacity>
+            </View>
 
             {post.conteudo ? (
               <Text style={styles.postConteudo}>{post.conteudo}</Text>
@@ -417,7 +469,6 @@ export default function PostDetailScreen() {
               <ImageCarousel imagens={post.imagens} />
             )}
 
-            {/* Ações */}
             <View style={styles.actions}>
               <TouchableOpacity style={styles.action} onPress={toggleLike}>
                 <Ionicons
@@ -458,11 +509,7 @@ export default function PostDetailScreen() {
 
             {comentarios.length === 0 ? (
               <View style={styles.emptyComments}>
-                <Ionicons
-                  name="chatbubble-outline"
-                  size={48}
-                  color="#ccc"
-                />
+                <Ionicons name="chatbubble-outline" size={48} color="#ccc" />
                 <Text style={styles.emptyCommentsText}>
                   Sê o primeiro a comentar
                 </Text>
@@ -522,6 +569,18 @@ export default function PostDetailScreen() {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+
+      {/* Modal de denúncia */}
+      {reportAlvo && (
+        <ReportModal
+          visivel={reportModalVisivel}
+          fechar={() => setReportModalVisivel(false)}
+          tipo={reportAlvo.tipo}
+          alvoId={reportAlvo.alvoId}
+          postId={post.id}
+          conteudoDenunciado={reportAlvo.conteudo}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -569,10 +628,7 @@ function ImageCarousel({ imagens }: { imagens: string[] }) {
         {imagens.map((_, i) => (
           <View
             key={i}
-            style={[
-              styles.indicator,
-              i === indexAtivo && styles.indicatorActive,
-            ]}
+            style={[styles.indicator, i === indexAtivo && styles.indicatorActive]}
           />
         ))}
       </View>
@@ -606,11 +662,23 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 17, fontWeight: '600', color: '#1a1a1a' },
   scroll: { paddingBottom: 16 },
-  postCard: { paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+  postCard: {
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
   postHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
+  },
+  postHeaderLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  reportBtn: {
+    padding: 4,
   },
   avatar: {
     width: 44,
@@ -716,6 +784,11 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   respostaRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  commentActions: {
+    flexDirection: 'row',
+    gap: 4,
+    alignItems: 'center',
+  },
   moreButton: { padding: 4 },
   emptyComments: { paddingVertical: 40, alignItems: 'center', gap: 12 },
   emptyCommentsText: { fontSize: 14, color: '#999' },
