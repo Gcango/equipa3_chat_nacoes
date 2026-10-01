@@ -8,11 +8,13 @@ import {
   Image,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -29,9 +31,13 @@ import {
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const IMAGE_WIDTH = Math.min(SCREEN_WIDTH - 32, 568);
+const DESKTOP_BREAKPOINT = 768;
 
 export default function FeedScreen() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const isDesktop = Platform.OS === 'web' && width >= DESKTOP_BREAKPOINT;
+
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -53,7 +59,6 @@ export default function FeedScreen() {
   function renderPost({ item }: { item: Post }) {
     return (
       <View style={styles.postCard}>
-        {/* Header clicável → abre perfil do autor */}
         <TouchableOpacity
           style={styles.postHeader}
           onPress={() => router.push(`/(tabs)/user/${item.autorId}` as any)}
@@ -106,16 +111,42 @@ export default function FeedScreen() {
   return (
     <ScreenContainer>
       <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <View style={styles.header}>
-          <View style={styles.headerSpacer} />
-          <Text style={styles.headerTitle}>Chat Nações</Text>
-          <TouchableOpacity
-            style={styles.headerButton}
-            onPress={() => router.push('/(tabs)/create-post')}
-          >
-            <Ionicons name="add-circle-outline" size={28} color="#007AFF" />
-          </TouchableOpacity>
-        </View>
+        {/* Header — diferente por dispositivo */}
+        {isDesktop ? (
+          // PC: só o título centrado
+          <View style={styles.header}>
+            <View style={styles.headerSpacer} />
+            <Text style={styles.headerTitle}>Chat Nações</Text>
+            <View style={styles.headerSpacer} />
+          </View>
+        ) : (
+          // Mobile: [+] Chat Nações [🔔]
+          <View style={styles.header}>
+            <TouchableOpacity
+              style={styles.headerBtn}
+              onPress={() => router.push('/(tabs)/create-post')}
+            >
+              <Ionicons
+                name="add-circle-outline"
+                size={28}
+                color="#1a1a1a"
+              />
+            </TouchableOpacity>
+
+            <Text style={styles.headerTitle}>Chat Nações</Text>
+
+            <TouchableOpacity
+              style={styles.headerBtn}
+              onPress={() => router.push('/(tabs)/notifications')}
+            >
+              <Ionicons
+                name="notifications-outline"
+                size={26}
+                color="#1a1a1a"
+              />
+            </TouchableOpacity>
+          </View>
+        )}
 
         {posts.length === 0 ? (
           <View style={styles.emptyContainer}>
@@ -304,6 +335,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
   },
+  headerBtn: {
+    padding: 4,
+    width: 36,
+    alignItems: 'center',
+  },
   headerSpacer: {
     width: 36,
   },
@@ -313,9 +349,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#1a1a1a',
     textAlign: 'center',
-  },
-  headerButton: {
-    padding: 4,
   },
   listContent: {
     padding: 8,

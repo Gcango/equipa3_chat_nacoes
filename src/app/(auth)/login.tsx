@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import { ScreenContainer } from '../../components/ScreenContainer';
 import { auth } from '../../services/firebase';
+import { getUserProfile } from '../../services/users';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -41,6 +42,18 @@ export default function LoginScreen() {
 
       const user = userCredential.user;
 
+      // Verificar se está banido
+      const perfil = await getUserProfile(user.uid);
+      if (perfil?.banido) {
+        await signOut(auth);
+        Alert.alert(
+          'Conta suspensa',
+          'A tua conta foi suspensa por um administrador. Contacta a escola se achares que é um erro.'
+        );
+        return;
+      }
+
+      // Bloquear se o email não estiver verificado
       if (!user.emailVerified) {
         try {
           await sendEmailVerification(user);
@@ -63,7 +76,10 @@ export default function LoginScreen() {
     } catch (error: any) {
       let mensagem = 'Ocorreu um erro. Tenta novamente.';
 
-      if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password') {
+      if (
+        error.code === 'auth/invalid-credential' ||
+        error.code === 'auth/wrong-password'
+      ) {
         mensagem = 'Email ou password incorretos.';
       } else if (error.code === 'auth/user-not-found') {
         mensagem = 'Não existe conta com este email.';
@@ -134,9 +150,7 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1 },
   content: {
     flex: 1,
     padding: 24,
@@ -173,9 +187,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 8,
   },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
+  buttonDisabled: { opacity: 0.6 },
   buttonText: {
     color: '#fff',
     fontSize: 16,

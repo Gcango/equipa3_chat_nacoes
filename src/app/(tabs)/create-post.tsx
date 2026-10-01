@@ -15,6 +15,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenContainer } from '../../components/ScreenContainer';
 import { criarPost } from '../../services/posts';
 
@@ -86,95 +87,107 @@ export default function CreatePostScreen() {
 
   return (
     <ScreenContainer>
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()}>
-            <Text style={styles.cancelar}>Cancelar</Text>
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Nova publicação</Text>
-          <TouchableOpacity onPress={handlePublicar} disabled={!podePublicar}>
-            {publicando ? (
-              <ActivityIndicator color="#007AFF" />
-            ) : (
-              <Text
-                style={[
-                  styles.publicar,
-                  !podePublicar && styles.publicarDisabled,
-                ]}
-              >
-                Publicar
-              </Text>
-            )}
-          </TouchableOpacity>
-        </View>
+      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          {/* Header */}
+          <View style={styles.header}>
+            <TouchableOpacity onPress={() => router.back()}>
+              <Text style={styles.cancelar}>Cancelar</Text>
+            </TouchableOpacity>
 
-        <ScrollView style={styles.content} keyboardShouldPersistTaps="handled">
-          <TextInput
-            style={styles.input}
-            placeholder="No que estás a pensar?"
-            placeholderTextColor="#999"
-            value={conteudo}
-            onChangeText={setConteudo}
-            multiline
-            autoFocus
-            maxLength={MAX_CHARS}
-          />
+            <Text style={styles.headerTitle}>Nova publicação</Text>
 
-          <Text style={styles.charCounter}>
-            {conteudo.length}/{MAX_CHARS}
-          </Text>
-
-          {imagens.length > 0 && (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.imagensPreview}
-              contentContainerStyle={styles.imagensPreviewContent}
+            <TouchableOpacity
+              onPress={handlePublicar}
+              disabled={!podePublicar}
             >
-              {imagens.map((uri, index) => (
-                <View key={index} style={styles.imagemWrapper}>
-                  <Image source={{ uri }} style={styles.imagemPreview} />
-                  <TouchableOpacity
-                    style={styles.removeButton}
-                    onPress={() => removerImagem(index)}
-                  >
-                    <Ionicons name="close-circle" size={24} color="#fff" />
-                  </TouchableOpacity>
-                </View>
-              ))}
-            </ScrollView>
-          )}
+              {publicando ? (
+                <ActivityIndicator color="#007AFF" />
+              ) : (
+                <Text
+                  style={[
+                    styles.publicar,
+                    !podePublicar && styles.publicarDisabled,
+                  ]}
+                >
+                  Publicar
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
 
-          <TouchableOpacity
-            style={styles.addImageButton}
-            onPress={escolherImagens}
+          <ScrollView
+            style={styles.content}
+            keyboardShouldPersistTaps="handled"
           >
-            <Ionicons name="images-outline" size={22} color="#007AFF" />
-            <Text style={styles.addImageText}>
-              {imagens.length === 0
-                ? 'Adicionar imagens'
-                : `Adicionar mais (${imagens.length}/${MAX_IMAGENS})`}
+            <TextInput
+              style={styles.input}
+              placeholder="No que estás a pensar?"
+              placeholderTextColor="#999"
+              value={conteudo}
+              onChangeText={setConteudo}
+              multiline
+              autoFocus
+              maxLength={MAX_CHARS}
+            />
+
+            <Text style={styles.charCounter}>
+              {conteudo.length}/{MAX_CHARS}
             </Text>
-          </TouchableOpacity>
-        </ScrollView>
-      </KeyboardAvoidingView>
+
+            {imagens.length > 0 && (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.imagensPreview}
+                contentContainerStyle={styles.imagensPreviewContent}
+              >
+                {imagens.map((uri, index) => (
+                  <View key={index} style={styles.imagemWrapper}>
+                    <Image source={{ uri }} style={styles.imagemPreview} />
+                    <TouchableOpacity
+                      style={styles.removeButton}
+                      onPress={() => removerImagem(index)}
+                    >
+                      <Ionicons
+                        name="close-circle"
+                        size={24}
+                        color="#fff"
+                      />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </ScrollView>
+            )}
+
+            <TouchableOpacity
+              style={styles.addImageButton}
+              onPress={escolherImagens}
+            >
+              <Ionicons name="images-outline" size={22} color="#007AFF" />
+              <Text style={styles.addImageText}>
+                {imagens.length === 0
+                  ? 'Adicionar imagens'
+                  : `Adicionar mais (${imagens.length}/${MAX_IMAGENS})`}
+              </Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
     </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
   },

@@ -21,8 +21,11 @@ export default function TabsLayout() {
             }}
           >
             <Tabs.Screen name="feed" />
+            <Tabs.Screen name="search" />
             <Tabs.Screen name="reels" />
+            <Tabs.Screen name="messages" />
             <Tabs.Screen name="notifications" />
+            <Tabs.Screen name="dashboard" />
             <Tabs.Screen name="profile" />
             <Tabs.Screen name="create-post" options={{ href: null }} />
             <Tabs.Screen name="user/[userId]" options={{ href: null }} />
@@ -34,6 +37,7 @@ export default function TabsLayout() {
     );
   }
 
+  // ============ MOBILE ============
   return (
     <Tabs
       screenOptions={{
@@ -56,20 +60,29 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="messages"
+        options={{
+          title: 'Mensagens',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="chatbubble-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="search"
+        options={{
+          title: 'Pesquisa',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="search-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="reels"
         options={{
           title: 'Reels',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="videocam-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="notifications"
-        options={{
-          title: 'Notificações',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="notifications-outline" size={size} color={color} />
           ),
         }}
       />
@@ -82,6 +95,9 @@ export default function TabsLayout() {
           ),
         }}
       />
+      {/* Rotas ocultas (não aparecem na tab bar) */}
+      <Tabs.Screen name="notifications" options={{ href: null }} />
+      <Tabs.Screen name="dashboard" options={{ href: null }} />
       <Tabs.Screen name="create-post" options={{ href: null }} />
       <Tabs.Screen name="user/[userId]" options={{ href: null }} />
       <Tabs.Screen name="follows/[userId]" options={{ href: null }} />

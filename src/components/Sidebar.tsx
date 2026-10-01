@@ -1,19 +1,31 @@
 import { Ionicons } from '@expo/vector-icons';
 import { usePathname, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { auth } from '../services/firebase';
+import { getUserProfile } from '../services/users';
 
 interface SidebarItem {
   name: string;
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
   route: string;
+  apenasAdmin?: boolean;
 }
 
-const ITEMS: SidebarItem[] = [
+const ITEMS_BASE: SidebarItem[] = [
   { name: 'feed', label: 'Página inicial', icon: 'home-outline', route: '/(tabs)/feed' },
+  { name: 'search', label: 'Pesquisa', icon: 'search-outline', route: '/(tabs)/search' },
   { name: 'reels', label: 'Reels', icon: 'videocam-outline', route: '/(tabs)/reels' },
+  { name: 'messages', label: 'Mensagens', icon: 'chatbubble-outline', route: '/(tabs)/messages' },
   { name: 'notifications', label: 'Notificações', icon: 'notifications-outline', route: '/(tabs)/notifications' },
+];
+
+const ITEMS_ADMIN: SidebarItem[] = [
+  { name: 'dashboard', label: 'Painel', icon: 'stats-chart-outline', route: '/(tabs)/dashboard', apenasAdmin: true },
+];
+
+const ITEMS_FIM: SidebarItem[] = [
   { name: 'profile', label: 'Perfil', icon: 'person-outline', route: '/(tabs)/profile' },
 ];
 
@@ -24,11 +36,26 @@ export function Sidebar() {
   const router = useRouter();
   const pathname = usePathname();
   const [expanded, setExpanded] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    const user = auth.currentUser;
+    if (!user) return;
+    getUserProfile(user.uid).then((perfil) => {
+      setIsAdmin(perfil?.role === 'admin');
+    });
+  }, []);
 
   function isActive(route: string): boolean {
     const cleanRoute = route.replace('/(tabs)', '');
     return pathname === cleanRoute || pathname.startsWith(cleanRoute);
   }
+
+  const items = [
+    ...ITEMS_BASE,
+    ...(isAdmin ? ITEMS_ADMIN : []),
+    ...ITEMS_FIM,
+  ];
 
   return (
     <View
@@ -36,11 +63,10 @@ export function Sidebar() {
         styles.sidebar,
         { width: expanded ? EXPANDED_WIDTH : COLLAPSED_WIDTH },
       ]}
-      // @ts-ignore — onMouseEnter/Leave só existem no web
+      // @ts-ignore
       onMouseEnter={() => setExpanded(true)}
       onMouseLeave={() => setExpanded(false)}
     >
-      {/* Logo */}
       <View style={styles.header}>
         <Image
           source={require('../../assets/images/ChatNacoes.png')}
@@ -50,9 +76,8 @@ export function Sidebar() {
         {expanded && <Text style={styles.headerTitle}>Chat Nações</Text>}
       </View>
 
-      {/* Itens */}
       <View style={styles.menu}>
-        {ITEMS.map((item) => {
+        {items.map((item) => {
           const active = isActive(item.route);
           return (
             <TouchableOpacity
@@ -103,11 +128,7 @@ const styles = StyleSheet.create({
     minHeight: 60,
     justifyContent: 'center',
   },
-  logoSmall: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
-  },
+  logoSmall: { width: 44, height: 44, borderRadius: 10 },
   logo: {
     width: 72,
     height: 72,
@@ -120,9 +141,7 @@ const styles = StyleSheet.create({
     color: '#007AFF',
     textAlign: 'center',
   },
-  menu: {
-    gap: 16,
-  },
+  menu: { gap: 12 },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -132,19 +151,8 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     gap: 14,
   },
-  menuItemExpanded: {
-    justifyContent: 'flex-start',
-  },
-  menuItemActive: {
-    backgroundColor: '#e8f0fe',
-  },
-  menuLabel: {
-    fontSize: 16,
-    color: '#333',
-    fontWeight: '500',
-  },
-  menuLabelActive: {
-    color: '#007AFF',
-    fontWeight: '600',
-  },
+  menuItemExpanded: { justifyContent: 'flex-start' },
+  menuItemActive: { backgroundColor: '#e8f0fe' },
+  menuLabel: { fontSize: 16, color: '#333', fontWeight: '500' },
+  menuLabelActive: { color: '#007AFF', fontWeight: '600' },
 });
