@@ -59,7 +59,7 @@ export default function ProfileScreen() {
 
       const dados = await getUserProfile(user.uid);
       if (dados) {
-        setProfile({ ...dados, emailVerified: user.emailVerified });
+        setProfile({ ...dados, emailVerificado: user.emailVerified });
       }
     } catch (error) {
       console.error(error);

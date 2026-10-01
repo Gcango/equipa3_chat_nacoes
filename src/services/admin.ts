@@ -2,6 +2,7 @@ import {
   collection,
   getCountFromServer,
   onSnapshot,
+  orderBy,
   query,
   where,
 } from 'firebase/firestore';
@@ -12,10 +13,6 @@ import { db, functions } from './firebase';
 // CLOUD FUNCTIONS
 // ============================================================
 
-/**
- * Promove o utilizador atual como o PRIMEIRO admin do sistema.
- * Só funciona se ainda não existir nenhum admin.
- */
 export async function promoverPrimeiroAdmin(): Promise<string> {
   const fn = httpsCallable(functions, 'promoverPrimeiroAdmin');
   const result = await fn();
@@ -23,9 +20,6 @@ export async function promoverPrimeiroAdmin(): Promise<string> {
   return data.message;
 }
 
-/**
- * Promove ou muda o role de outro utilizador (só admin).
- */
 export async function promoverUtilizador(
   targetUid: string,
   novoRole: 'aluno' | 'professor' | 'admin'
@@ -36,10 +30,6 @@ export async function promoverUtilizador(
   return data.message;
 }
 
-/**
- * Bane ou desbane um utilizador (só admin).
- * Se banir === true, apaga posts/comentários/follows.
- */
 export async function banirUtilizador(
   targetUid: string,
   banir: boolean
@@ -48,8 +38,18 @@ export async function banirUtilizador(
   await fn({ targetUid, banir });
 }
 
+export async function removerConteudo(params: {
+  tipo: 'post' | 'comentario' | 'resposta';
+  alvoId: string;
+  postId: string;
+  respostaId?: string;
+}): Promise<void> {
+  const fn = httpsCallable(functions, 'removerConteudo');
+  await fn(params);
+}
+
 // ============================================================
-// ESTATÍSTICAS — Visão Geral
+// ESTATÍSTICAS
 // ============================================================
 
 export interface Estatisticas {
@@ -69,9 +69,6 @@ export interface DenunciasPorMotivo {
   outro: number;
 }
 
-/**
- * Escuta contagens em tempo real (users, posts, reports, likes, comentários).
- */
 export function escutarEstatisticas(
   callback: (stats: Estatisticas) => void
 ): () => void {
@@ -87,7 +84,6 @@ export function escutarEstatisticas(
   let publicacoes = 0;
   let denuncias = 0;
   let denunciasPendentes = 0;
-  let comentarios = 0;
   let likes = 0;
 
   function emitir() {
@@ -96,12 +92,11 @@ export function escutarEstatisticas(
       publicacoes,
       denuncias,
       denunciasPendentes,
-      comentarios,
+      comentarios: 0,
       likes,
     });
   }
 
-  // Contagens (rápidas, do lado do servidor)
   async function atualizarContagens() {
     try {
       const [u, p, r, rp] = await Promise.all([
@@ -123,7 +118,6 @@ export function escutarEstatisticas(
   atualizarContagens();
   const interval = setInterval(atualizarContagens, 30000);
 
-  // Likes + comentários: escutar posts e agregar
   const unsubPosts = onSnapshot(postsRef, (snap) => {
     let totalLikes = 0;
     snap.docs.forEach((doc) => {
@@ -141,9 +135,6 @@ export function escutarEstatisticas(
   };
 }
 
-/**
- * Conta denúncias agrupadas por motivo.
- */
 export function escutarDenunciasPorMotivo(
   callback: (stats: DenunciasPorMotivo) => void
 ): () => void {
@@ -167,4 +158,65 @@ export function escutarDenunciasPorMotivo(
 
     callback(contagem);
   });
+}
+
+// ============================================================
+// DENÚNCIAS
+// ============================================================
+
+export interface Report {
+  id: string;
+  tipo: 'post' | 'comentario' | 'resposta';
+  alvoId: string;
+  postId: string;
+  autorId: string;
+  autorNome: string;
+  motivo: string;
+  descricao: string;
+  estado: 'pendente' | 'ignorado' | 'resolvido';
+  conteudoDenunciado: string;
+  criadoEm: any;
+}
+
+export function escutarDenuncias(
+  filtro: 'todas' | 'pendente' | 'resolvido' | 'ignorado',
+  callback: (reports: Report[]) => void
+): () => void {
+  const reportsRef = collection(db, 'reports');
+  const q =
+    filtro === 'todas'
+      ? query(reportsRef, orderBy('criadoEm', 'desc'))
+      : query(
+          reportsRef,
+          where('estado', '==', filtro),
+          orderBy('criadoEm', 'desc')
+        );
+
+  return onSnapshot(q, (snap) => {
+    const lista = snap.docs.map((d) => ({
+      id: d.id,
+      ...d.data(),
+    })) as Report[];
+    callback(lista);
+  });
+}
+
+/**
+ * Atualiza estado de uma denúncia
+ */
+export async function atualizarEstadoDenuncia(
+  reportId: string,
+  novoEstado: 'pendente' | 'ignorado' | 'resolvido'
+): Promise<void> {
+  const { doc, updateDoc } = await import('firebase/firestore');
+  const ref = doc(db, 'reports', reportId);
+  await updateDoc(ref, { estado: novoEstado });
+}
+
+/**
+ * Apaga uma denúncia
+ */
+export async function apagarDenuncia(reportId: string): Promise<void> {
+  const { doc, deleteDoc } = await import('firebase/firestore');
+  await deleteDoc(doc(db, 'reports', reportId));
 }

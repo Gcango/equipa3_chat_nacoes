@@ -39,7 +39,7 @@ exports.onUserCreated = functions.auth.user().onCreate(async (user) => {
 
 /**
  * 3) PROMOVER PRIMEIRO ADMIN
- * Só funciona se ainda não existir nenhum admin. Depois fica bloqueada.
+ * Só funciona se ainda não existir nenhum admin.
  */
 exports.promoverPrimeiroAdmin = functions.https.onCall(async (data, context) => {
   if (!context.auth) {
@@ -190,7 +190,7 @@ exports.banirUtilizador = functions.https.onCall(async (data, context) => {
   const db = admin.firestore();
 
   if (banir) {
-    // 1. Apagar posts do utilizador (e comentários dentro deles)
+    // Apagar posts do utilizador (e comentários dentro deles)
     const postsSnap = await db
       .collection('posts')
       .where('autorId', '==', targetUid)
@@ -204,7 +204,7 @@ exports.banirUtilizador = functions.https.onCall(async (data, context) => {
       await batch1.commit();
     }
 
-    // 2. Apagar comentários feitos pelo utilizador em posts de outros
+    // Apagar comentários feitos pelo utilizador em posts de outros
     const allPosts = await db.collection('posts').get();
     for (const postDoc of allPosts.docs) {
       const comentsSnap = await postDoc.ref
@@ -218,7 +218,7 @@ exports.banirUtilizador = functions.https.onCall(async (data, context) => {
       }
     }
 
-    // 3. Apagar follows (quem ele segue e quem o segue)
+    // Apagar follows
     const followsA = await db
       .collection('follows')
       .where('followerId', '==', targetUid)
@@ -242,4 +242,106 @@ exports.banirUtilizador = functions.https.onCall(async (data, context) => {
 
   console.log(`${banir ? '🚫 Baniu' : '✅ Desbaniu'} ${targetUid}`);
   return { success: true };
+});
+
+/**
+ * 6) REMOVER CONTEÚDO
+ * Remove um post, comentário ou resposta (só admin).
+ */
+exports.removerConteudo = functions.https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError(
+      'unauthenticated',
+      'Tens de estar autenticado.'
+    );
+  }
+
+  const callerUid = context.auth.uid;
+  const callerSnap = await admin
+    .firestore()
+    .collection('users')
+    .doc(callerUid)
+    .get();
+
+  if (!callerSnap.exists || callerSnap.data().role !== 'admin') {
+    throw new functions.https.HttpsError(
+      'permission-denied',
+      'Só admins podem remover conteúdo.'
+    );
+  }
+
+  const { tipo, alvoId, postId, respostaId } = data;
+
+  if (!tipo || !alvoId || !postId) {
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      'Parâmetros inválidos.'
+    );
+  }
+
+  const db = admin.firestore();
+
+  try {
+    if (tipo === 'post') {
+      // Apagar post + todos os seus comentários
+      const postRef = db.collection('posts').doc(alvoId);
+      const comentsSnap = await postRef.collection('comentarios').get();
+      const batch = db.batch();
+      comentsSnap.docs.forEach((c) => batch.delete(c.ref));
+      batch.delete(postRef);
+      await batch.commit();
+      console.log(`🗑️ Admin ${callerUid} apagou post ${alvoId}`);
+    } else if (tipo === 'comentario') {
+      // Apagar comentário específico
+      const comentRef = db
+        .collection('posts')
+        .doc(postId)
+        .collection('comentarios')
+        .doc(alvoId);
+      await comentRef.delete();
+      console.log(`🗑️ Admin ${callerUid} apagou comentário ${alvoId}`);
+    } else if (tipo === 'resposta') {
+      // Apagar resposta específica (array dentro do comentário)
+      if (!respostaId) {
+        throw new functions.https.HttpsError(
+          'invalid-argument',
+          'respostaId obrigatório para tipo=resposta.'
+        );
+      }
+
+      const comentRef = db
+        .collection('posts')
+        .doc(postId)
+        .collection('comentarios')
+        .doc(alvoId);
+
+      const comentSnap = await comentRef.get();
+      if (!comentSnap.exists) {
+        throw new functions.https.HttpsError(
+          'not-found',
+          'Comentário não encontrado.'
+        );
+      }
+
+      const respostas = comentSnap.data().respostas || [];
+      const novasRespostas = respostas.filter((r) => r.id !== respostaId);
+
+      await comentRef.update({ respostas: novasRespostas });
+      console.log(`🗑️ Admin ${callerUid} apagou resposta ${respostaId}`);
+    } else {
+      throw new functions.https.HttpsError(
+        'invalid-argument',
+        'Tipo inválido: ' + tipo
+      );
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Erro ao remover:', error);
+    if (error instanceof functions.https.HttpsError) throw error;
+    throw new functions.https.HttpsError(
+      'internal',
+      'Não foi possível remover o conteúdo.'
+    );
+  }
 });

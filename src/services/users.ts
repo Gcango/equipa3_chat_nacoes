@@ -1,7 +1,9 @@
 import {
-    doc,
-    getDoc,
-    updateDoc
+  doc,
+  getDoc,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
 } from 'firebase/firestore';
 import { db } from './firebase';
 
@@ -14,6 +16,7 @@ export interface UserProfile {
   bio: string;
   fotoURL: string;
   role: UserRole;
+  banido: boolean;
   emailVerificado: boolean;
   criadoEm?: any;
 }
@@ -27,7 +30,18 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
     const docSnap = await getDoc(docRef);
 
     if (docSnap.exists()) {
-      return docSnap.data() as UserProfile;
+      const data = docSnap.data();
+      return {
+        uid,
+        email: data.email || '',
+        nome: data.nome || '',
+        bio: data.bio || '',
+        fotoURL: data.fotoURL || '',
+        role: data.role || 'aluno',
+        banido: data.banido || false,
+        emailVerificado: data.emailVerificado || false,
+        criadoEm: data.criadoEm,
+      };
     }
     return null;
   } catch (error) {
@@ -37,7 +51,7 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
 }
 
 /**
- * Atualiza campos do perfil do utilizador
+ * Atualiza campos do perfil
  */
 export async function updateUserProfile(
   uid: string,
@@ -53,7 +67,7 @@ export async function updateUserProfile(
 }
 
 /**
- * Marca o email como verificado (chamado após login com sucesso)
+ * Marca o email como verificado
  */
 export async function marcarEmailVerificado(uid: string): Promise<void> {
   try {
