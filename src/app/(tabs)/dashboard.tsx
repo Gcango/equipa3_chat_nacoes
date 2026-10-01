@@ -21,13 +21,39 @@ import {
   escutarEstatisticas,
   Estatisticas,
   removerConteudo,
-  Report
+  Report,
 } from '../../services/admin';
 import { auth } from '../../services/firebase';
 import { getUserProfile } from '../../services/users';
 
 type Aba = 'visao' | 'denuncias' | 'utilizadores';
 type FiltroDenuncias = 'pendente' | 'resolvido' | 'ignorado' | 'todas';
+
+// ============================================================
+// CORES (paleta sóbria)
+// ============================================================
+const COR = {
+  fundo: '#F7F8FA',
+  card: '#FFFFFF',
+  textoPrincipal: '#111827',
+  textoMedio: '#6B7280',
+  textoClaro: '#9CA3AF',
+  borda: '#E5E7EB',
+  divisoria: '#F3F4F6',
+
+  acento: '#2563EB',
+  acentoClaro: '#EFF6FF',
+  acentoEscuro: '#1E40AF',
+
+  perigo: '#DC2626',
+  perigoClaro: '#FEF2F2',
+  sucesso: '#059669',
+  sucessoClaro: '#ECFDF5',
+  aviso: '#D97706',
+  avisoClaro: '#FFFBEB',
+  neutro: '#6B7280',
+  neutroClaro: '#F3F4F6',
+};
 
 const VAZIO: Estatisticas = {
   utilizadores: 0,
@@ -49,17 +75,9 @@ const MOTIVOS_VAZIO: DenunciasPorMotivo = {
 const MOTIVOS_LABEL: Record<keyof DenunciasPorMotivo, string> = {
   spam: 'Spam',
   assedio: 'Assédio',
-  conteudo_inapropriado: 'Inapropriado',
+  conteudo_inapropriado: 'Conteúdo inapropriado',
   violencia: 'Violência',
   outro: 'Outro',
-};
-
-const MOTIVOS_EMOJI: Record<string, string> = {
-  spam: '📢',
-  assedio: '😠',
-  conteudo_inapropriado: '🚫',
-  violencia: '⚠️',
-  outro: '❓',
 };
 
 function formatarTempo(valor: any): string {
@@ -75,6 +93,13 @@ function formatarTempo(valor: any): string {
   if (d < 86400) return `há ${Math.floor(d / 3600)} h`;
   if (d < 604800) return `há ${Math.floor(d / 86400)} dias`;
   return `há ${Math.floor(d / 2592000)} meses`;
+}
+
+function labelTipo(tipo: string): string {
+  if (tipo === 'post') return 'Publicação';
+  if (tipo === 'comentario') return 'Comentário';
+  if (tipo === 'resposta') return 'Resposta';
+  return tipo;
 }
 
 export default function DashboardScreen() {
@@ -127,7 +152,7 @@ export default function DashboardScreen() {
     return (
       <ScreenContainer>
         <View style={styles.loading}>
-          <ActivityIndicator size="large" color="#007AFF" />
+          <ActivityIndicator size="large" color={COR.acento} />
         </View>
       </ScreenContainer>
     );
@@ -143,9 +168,12 @@ export default function DashboardScreen() {
       try {
         await atualizarEstadoDenuncia(r.id, 'ignorado');
       } catch (e) {
-        alert('Erro ao ignorar.');
+        console.error(e);
+        if (Platform.OS === 'web') window.alert('Erro ao ignorar.');
+        else Alert.alert('Erro', 'Não foi possível ignorar.');
       }
     };
+
     if (Platform.OS === 'web') {
       if (window.confirm('Marcar esta denúncia como ignorada?')) executar();
     } else {
@@ -174,45 +202,14 @@ export default function DashboardScreen() {
       }
     };
 
-    const msg = 'Vais apagar este conteúdo permanentemente. Continuar?';
+    const msg =
+      'Vais apagar este conteúdo permanentemente. Esta ação não pode ser desfeita. Continuar?';
     if (Platform.OS === 'web') {
       if (window.confirm(msg)) executar();
     } else {
       Alert.alert('Remover conteúdo', msg, [
         { text: 'Cancelar', style: 'cancel' },
         { text: 'Remover', style: 'destructive', onPress: executar },
-      ]);
-    }
-  }
-
-  async function handleBanir(r: Report) {
-    // Para banir, precisamos do autorId do conteúdo — não está no report
-    // Vamos usar o autorNome como referência e pedir confirmação simples
-    const msg =
-      'Isto vai banir o autor E apagar TODOS os posts/comentários dele. Continuar?';
-
-    const executar = async () => {
-      // Buscar o autor original — no report temos o `postId` mas não o autorId
-      // Solução: usar o autorId do post (que obtemos ao abrir)
-      // Para simplificar, pedimos ao admin para ir ao post e banir de lá
-      if (Platform.OS === 'web') {
-        window.alert(
-          'Para banir, abre o post denunciado e clica em banir a partir do perfil do autor.'
-        );
-      } else {
-        Alert.alert(
-          'Banir',
-          'Para banir, abre o post denunciado e clica em banir a partir do perfil do autor.'
-        );
-      }
-    };
-
-    if (Platform.OS === 'web') {
-      if (window.confirm(msg)) executar();
-    } else {
-      Alert.alert('Banir autor', msg, [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Continuar', style: 'destructive', onPress: executar },
       ]);
     }
   }
@@ -228,83 +225,39 @@ export default function DashboardScreen() {
   return (
     <ScreenContainer>
       <SafeAreaView style={styles.container} edges={['top']}>
+        {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Painel</Text>
+          <View style={styles.headerLeft}>
+            <Text style={styles.headerTitle}>Painel de Administração</Text>
+            <Text style={styles.headerSub}>Gestão da comunidade escolar</Text>
+          </View>
           <View style={styles.adminBadge}>
-            <Ionicons name="shield-checkmark" size={14} color="#fff" />
+            <Ionicons name="shield-checkmark" size={14} color={COR.acento} />
             <Text style={styles.adminBadgeText}>ADMIN</Text>
           </View>
         </View>
 
+        {/* Abas */}
         <View style={styles.tabs}>
-          <TouchableOpacity
-            style={[styles.tab, abaAtiva === 'visao' && styles.tabActive]}
+          <TabBtn
+            label="Visão geral"
+            icon="stats-chart-outline"
+            active={abaAtiva === 'visao'}
             onPress={() => setAbaAtiva('visao')}
-          >
-            <Ionicons
-              name="stats-chart-outline"
-              size={20}
-              color={abaAtiva === 'visao' ? '#007AFF' : '#999'}
-            />
-            <Text
-              style={[
-                styles.tabText,
-                abaAtiva === 'visao' && styles.tabTextActive,
-              ]}
-            >
-              Visão geral
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.tab, abaAtiva === 'denuncias' && styles.tabActive]}
+          />
+          <TabBtn
+            label="Denúncias"
+            icon="flag-outline"
+            active={abaAtiva === 'denuncias'}
             onPress={() => setAbaAtiva('denuncias')}
-          >
-            <View style={styles.tabIconWrapper}>
-              <Ionicons
-                name="flag-outline"
-                size={20}
-                color={abaAtiva === 'denuncias' ? '#007AFF' : '#999'}
-              />
-              {stats.denunciasPendentes > 0 && (
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>
-                    {stats.denunciasPendentes}
-                  </Text>
-                </View>
-              )}
-            </View>
-            <Text
-              style={[
-                styles.tabText,
-                abaAtiva === 'denuncias' && styles.tabTextActive,
-              ]}
-            >
-              Denúncias
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.tab,
-              abaAtiva === 'utilizadores' && styles.tabActive,
-            ]}
+            badge={stats.denunciasPendentes}
+          />
+          <TabBtn
+            label="Utilizadores"
+            icon="people-outline"
+            active={abaAtiva === 'utilizadores'}
             onPress={() => setAbaAtiva('utilizadores')}
-          >
-            <Ionicons
-              name="people-outline"
-              size={20}
-              color={abaAtiva === 'utilizadores' ? '#007AFF' : '#999'}
-            />
-            <Text
-              style={[
-                styles.tabText,
-                abaAtiva === 'utilizadores' && styles.tabTextActive,
-              ]}
-            >
-              Utilizadores
-            </Text>
-          </TouchableOpacity>
+          />
         </View>
 
         <ScrollView contentContainerStyle={styles.content}>
@@ -312,37 +265,36 @@ export default function DashboardScreen() {
           {abaAtiva === 'visao' && (
             <View>
               <View style={styles.cardsRow}>
-                <Card
-                  icon="people"
-                  cor="#007AFF"
-                  valor={stats.utilizadores}
+                <StatCard
+                  icon="people-outline"
                   label="Utilizadores"
+                  valor={stats.utilizadores}
+                  sub="contas registadas"
                 />
-                <Card
-                  icon="document-text"
-                  cor="#34C759"
-                  valor={stats.publicacoes}
+                <StatCard
+                  icon="document-text-outline"
                   label="Publicações"
+                  valor={stats.publicacoes}
+                  sub="no total"
                 />
               </View>
               <View style={styles.cardsRow}>
-                <Card
-                  icon="flag"
-                  cor="#FF3B30"
-                  valor={stats.denuncias}
+                <StatCard
+                  icon="flag-outline"
                   label="Denúncias"
-                  destaque={stats.denunciasPendentes > 0}
-                  subtexto={
+                  valor={stats.denuncias}
+                  sub={
                     stats.denunciasPendentes > 0
                       ? `${stats.denunciasPendentes} pendentes`
-                      : undefined
+                      : 'sem pendentes'
                   }
+                  destaque={stats.denunciasPendentes > 0}
                 />
-                <Card
-                  icon="heart"
-                  cor="#FF2D55"
-                  valor={stats.likes}
+                <StatCard
+                  icon="heart-outline"
                   label="Likes"
+                  valor={stats.likes}
+                  sub="no total"
                 />
               </View>
 
@@ -355,7 +307,7 @@ export default function DashboardScreen() {
                     return (
                       <View key={motivo} style={styles.motivoRow}>
                         <Text style={styles.motivoLabel}>
-                          {MOTIVOS_EMOJI[motivo]} {MOTIVOS_LABEL[motivo]}
+                          {MOTIVOS_LABEL[motivo]}
                         </Text>
                         <View style={styles.barraWrapper}>
                           <View
@@ -364,7 +316,7 @@ export default function DashboardScreen() {
                               {
                                 width: `${percentagem}%`,
                                 backgroundColor:
-                                  valor > 0 ? '#FF3B30' : '#f0f0f0',
+                                  valor > 0 ? COR.perigo : COR.divisoria,
                               },
                             ]}
                           />
@@ -398,6 +350,7 @@ export default function DashboardScreen() {
                       filtro === f.v && styles.filtroBtnActive,
                     ]}
                     onPress={() => setFiltro(f.v)}
+                    activeOpacity={0.7}
                   >
                     <Text
                       style={[
@@ -413,123 +366,163 @@ export default function DashboardScreen() {
 
               {denuncias.length === 0 ? (
                 <View style={styles.emptyContainer}>
-                  <Ionicons name="checkmark-circle-outline" size={64} color="#ccc" />
+                  <View style={styles.emptyIconCircle}>
+                    <Ionicons
+                      name="checkmark-done-outline"
+                      size={36}
+                      color={COR.sucesso}
+                    />
+                  </View>
                   <Text style={styles.emptyTitle}>Sem denúncias</Text>
                   <Text style={styles.emptySub}>
                     Nada para moderar nesta categoria.
                   </Text>
                 </View>
               ) : (
-                denuncias.map((r) => (
-                  <View key={r.id} style={styles.reportCard}>
-                    <View style={styles.reportHeader}>
-                      <Text style={styles.reportMotivo}>
-                        {MOTIVOS_EMOJI[r.motivo] || '❓'}{' '}
-                        {MOTIVOS_LABEL[r.motivo as keyof DenunciasPorMotivo] ||
-                          r.motivo}
-                      </Text>
-                      <View
-                        style={[
-                          styles.estadoBadge,
-                          {
-                            backgroundColor:
-                              r.estado === 'pendente'
-                                ? '#FFF3CD'
-                                : r.estado === 'resolvido'
-                                ? '#D4EDDA'
-                                : '#E2E3E5',
-                          },
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.estadoText,
-                            {
-                              color:
-                                r.estado === 'pendente'
-                                  ? '#856404'
-                                  : r.estado === 'resolvido'
-                                  ? '#155724'
-                                  : '#383D41',
-                            },
-                          ]}
-                        >
-                          {r.estado.toUpperCase()}
+                denuncias.map((r) => {
+                  const corEstado =
+                    r.estado === 'pendente'
+                      ? COR.aviso
+                      : r.estado === 'resolvido'
+                      ? COR.sucesso
+                      : COR.neutro;
+
+                  const labelEstado =
+                    r.estado === 'pendente'
+                      ? 'PENDENTE'
+                      : r.estado === 'resolvido'
+                      ? 'RESOLVIDO'
+                      : 'IGNORADO';
+
+                  return (
+                    <View
+                      key={r.id}
+                      style={[styles.reportCard, { borderLeftColor: corEstado }]}
+                    >
+                      {/* Header */}
+                      <View style={styles.reportHeader}>
+                        <Text style={styles.reportMotivo}>
+                          {MOTIVOS_LABEL[
+                            r.motivo as keyof DenunciasPorMotivo
+                          ] || r.motivo}
                         </Text>
-                      </View>
-                    </View>
-
-                    <Text style={styles.reportMeta}>
-                      <Text style={styles.bold}>Por:</Text> {r.autorNome} ·{' '}
-                      {formatarTempo(r.criadoEm)}
-                    </Text>
-
-                    <Text style={styles.reportMeta}>
-                      <Text style={styles.bold}>Tipo:</Text>{' '}
-                      {r.tipo === 'post'
-                        ? 'Publicação'
-                        : r.tipo === 'comentario'
-                        ? 'Comentário'
-                        : 'Resposta'}
-                    </Text>
-
-                    <View style={styles.reportContent}>
-                      <Text style={styles.reportContentLabel}>
-                        Conteúdo denunciado:
-                      </Text>
-                      <Text style={styles.reportContentText} numberOfLines={4}>
-                        {r.conteudoDenunciado || '[sem texto]'}
-                      </Text>
-                    </View>
-
-                    {r.descricao ? (
-                      <View style={styles.reportContent}>
-                        <Text style={styles.reportContentLabel}>
-                          Descrição do denunciante:
-                        </Text>
-                        <Text style={styles.reportContentText}>
-                          {r.descricao}
-                        </Text>
-                      </View>
-                    ) : null}
-
-                    {r.estado === 'pendente' && (
-                      <View style={styles.reportActions}>
-                        <TouchableOpacity
-                          style={[styles.actionBtn, styles.actionVer]}
-                          onPress={() => handleVerPost(r)}
-                        >
-                          <Ionicons name="eye-outline" size={16} color="#fff" />
-                          <Text style={styles.actionText}>Ver</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                          style={[styles.actionBtn, styles.actionIgnorar]}
-                          onPress={() => handleIgnorar(r)}
-                        >
-                          <Ionicons
-                            name="close-outline"
-                            size={16}
-                            color="#fff"
+                        <View style={styles.estadoWrapper}>
+                          <View
+                            style={[
+                              styles.estadoDot,
+                              { backgroundColor: corEstado },
+                            ]}
                           />
-                          <Text style={styles.actionText}>Ignorar</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                          style={[styles.actionBtn, styles.actionRemover]}
-                          onPress={() => handleRemover(r)}
-                        >
-                          <Ionicons
-                            name="trash-outline"
-                            size={16}
-                            color="#fff"
-                          />
-                          <Text style={styles.actionText}>Remover</Text>
-                        </TouchableOpacity>
+                          <Text
+                            style={[styles.estadoLabel, { color: corEstado }]}
+                          >
+                            {labelEstado}
+                          </Text>
+                        </View>
                       </View>
-                    )}
-                  </View>
-                ))
+
+                      {/* Meta */}
+                      <View style={styles.reportMetaRow}>
+                        <Text style={styles.reportMetaLabel}>Denunciado por</Text>
+                        <Text style={styles.reportMetaValue}>
+                          {r.autorNome}
+                        </Text>
+                      </View>
+                      <View style={styles.reportMetaRow}>
+                        <Text style={styles.reportMetaLabel}>Há</Text>
+                        <Text style={styles.reportMetaValue}>
+                          {formatarTempo(r.criadoEm).replace('há ', '')}
+                        </Text>
+                      </View>
+                      <View style={styles.reportMetaRow}>
+                        <Text style={styles.reportMetaLabel}>Tipo</Text>
+                        <Text style={styles.reportMetaValue}>
+                          {labelTipo(r.tipo)}
+                        </Text>
+                      </View>
+
+                      {/* Conteúdo denunciado */}
+                      <View style={styles.bloco}>
+                        <Text style={styles.blocoLabel}>
+                          CONTEÚDO DENUNCIADO
+                        </Text>
+                        <Text style={styles.blocoText} numberOfLines={4}>
+                          {r.conteudoDenunciado || '—'}
+                        </Text>
+                      </View>
+
+                      {/* Descrição */}
+                      {r.descricao ? (
+                        <View style={styles.bloco}>
+                          <Text style={styles.blocoLabel}>
+                            DESCRIÇÃO DO DENUNCIANTE
+                          </Text>
+                          <Text style={styles.blocoText}>{r.descricao}</Text>
+                        </View>
+                      ) : null}
+
+                      {/* Ações */}
+                      {r.estado === 'pendente' && (
+                        <View style={styles.reportActions}>
+                          <TouchableOpacity
+                            style={[styles.actionBtn, styles.actionVer]}
+                            onPress={() => handleVerPost(r)}
+                            activeOpacity={0.7}
+                          >
+                            <Ionicons
+                              name="eye-outline"
+                              size={16}
+                              color={COR.acento}
+                            />
+                            <Text
+                              style={[
+                                styles.actionText,
+                                { color: COR.acento },
+                              ]}
+                            >
+                              Ver
+                            </Text>
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            style={[styles.actionBtn, styles.actionIgnorar]}
+                            onPress={() => handleIgnorar(r)}
+                            activeOpacity={0.7}
+                          >
+                            <Ionicons
+                              name="close-outline"
+                              size={16}
+                              color={COR.textoMedio}
+                            />
+                            <Text
+                              style={[
+                                styles.actionText,
+                                { color: COR.textoMedio },
+                              ]}
+                            >
+                              Ignorar
+                            </Text>
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            style={[styles.actionBtn, styles.actionRemover]}
+                            onPress={() => handleRemover(r)}
+                            activeOpacity={0.7}
+                          >
+                            <Ionicons
+                              name="trash-outline"
+                              size={16}
+                              color="#fff"
+                            />
+                            <Text style={[styles.actionText, { color: '#fff' }]}>
+                              Remover
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                    </View>
+                  );
+                })
               )}
             </View>
           )}
@@ -537,10 +530,16 @@ export default function DashboardScreen() {
           {/* ====== UTILIZADORES ====== */}
           {abaAtiva === 'utilizadores' && (
             <View style={styles.placeholder}>
-              <Ionicons name="people-outline" size={64} color="#ccc" />
-              <Text style={styles.placeholderText}>Utilizadores</Text>
-              <Text style={styles.placeholderSub}>
-                A construir na Parte 4
+              <View style={styles.emptyIconCircle}>
+                <Ionicons
+                  name="people-outline"
+                  size={36}
+                  color={COR.textoClaro}
+                />
+              </View>
+              <Text style={styles.emptyTitle}>Utilizadores</Text>
+              <Text style={styles.emptySub}>
+                Esta secção será implementada na próxima fase.
               </Text>
             </View>
           )}
@@ -550,207 +549,430 @@ export default function DashboardScreen() {
   );
 }
 
-function Card({
-  icon,
-  cor,
-  valor,
+// ============================================================
+// COMPONENTES AUXILIARES
+// ============================================================
+
+function TabBtn({
   label,
+  icon,
+  active,
+  onPress,
+  badge,
+}: {
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  active: boolean;
+  onPress: () => void;
+  badge?: number;
+}) {
+  return (
+    <TouchableOpacity
+      style={[styles.tab, active && styles.tabActive]}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
+      <View style={styles.tabIconWrapper}>
+        <Ionicons
+          name={icon}
+          size={20}
+          color={active ? COR.acento : COR.textoMedio}
+        />
+        {badge !== undefined && badge > 0 && (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{badge}</Text>
+          </View>
+        )}
+      </View>
+      <Text style={[styles.tabText, active && styles.tabTextActive]}>
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
+function StatCard({
+  icon,
+  label,
+  valor,
+  sub,
   destaque,
-  subtexto,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
-  cor: string;
-  valor: number;
   label: string;
+  valor: number;
+  sub: string;
   destaque?: boolean;
-  subtexto?: string;
 }) {
   return (
     <View
       style={[
         styles.card,
-        destaque && { borderColor: '#FF3B30', borderWidth: 2 },
+        destaque && { borderColor: COR.perigo, borderWidth: 1.5 },
       ]}
     >
-      <View style={[styles.cardIconCircle, { backgroundColor: cor + '20' }]}>
-        <Ionicons name={icon} size={22} color={cor} />
+      <View style={styles.cardHeader}>
+        <Text style={styles.cardLabel}>{label.toUpperCase()}</Text>
+        <Ionicons
+          name={icon}
+          size={18}
+          color={destaque ? COR.perigo : COR.textoClaro}
+        />
       </View>
       <Text style={styles.cardValor}>{valor}</Text>
-      <Text style={styles.cardLabel}>{label}</Text>
-      {subtexto && (
-        <Text style={[styles.cardSub, { color: cor }]}>{subtexto}</Text>
-      )}
+      <Text style={styles.cardSub}>{sub}</Text>
     </View>
   );
 }
-
+// ============================================================
+// ESTILOS
+// ============================================================
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  loading: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  container: {
+    flex: 1,
+    backgroundColor: COR.fundo,
+  },
+  loading: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COR.fundo,
+  },
+
+  // ============ HEADER ============
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: 24,
+    paddingVertical: 20,
+    backgroundColor: COR.card,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: COR.borda,
   },
-  headerTitle: { fontSize: 24, fontWeight: '700', color: '#1a1a1a' },
+  headerLeft: {
+    flex: 1,
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: COR.textoPrincipal,
+    letterSpacing: -0.3,
+  },
+  headerSub: {
+    fontSize: 13,
+    color: COR.textoMedio,
+    marginTop: 2,
+  },
   adminBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#FF3B30',
+    gap: 5,
+    backgroundColor: COR.acentoClaro,
     paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: COR.acento + '30',
   },
   adminBadgeText: {
-    color: '#fff',
+    color: COR.acento,
     fontSize: 11,
     fontWeight: '700',
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
   },
+
+  // ============ ABAS ============
   tabs: {
     flexDirection: 'row',
+    backgroundColor: COR.card,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: COR.borda,
   },
   tab: {
     flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingVertical: 12,
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 16,
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
   },
-  tabActive: { borderBottomColor: '#007AFF' },
-  tabText: { fontSize: 12, color: '#999', fontWeight: '500' },
-  tabTextActive: { color: '#007AFF', fontWeight: '600' },
-  tabIconWrapper: { position: 'relative' },
+  tabActive: {
+    borderBottomColor: COR.acento,
+  },
+  tabIconWrapper: {
+    position: 'relative',
+  },
+  tabText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COR.textoMedio,
+  },
+  tabTextActive: {
+    color: COR.acento,
+  },
   badge: {
     position: 'absolute',
-    top: -4,
-    right: -8,
-    backgroundColor: '#FF3B30',
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
+    top: -6,
+    right: -10,
+    backgroundColor: COR.perigo,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 4,
+    paddingHorizontal: 5,
+    borderWidth: 2,
+    borderColor: COR.card,
   },
-  badgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
-  content: { padding: 20, gap: 8 },
-  cardsRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
+  badgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+
+  // ============ CONTEÚDO ============
+  content: {
+    padding: 24,
+    gap: 12,
+  },
+
+  // ============ CARDS DE ESTATÍSTICAS ============
+  cardsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 12,
+  },
   card: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: COR.card,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#f0f0f0',
-    padding: 16,
-    alignItems: 'center',
+    borderColor: COR.borda,
+    padding: 20,
     gap: 6,
     minHeight: 130,
-    justifyContent: 'center',
+    ...(Platform.OS === 'web'
+      ? { boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }
+      : {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.04,
+          shadowRadius: 3,
+          elevation: 1,
+        }),
   },
-  cardIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
+  cardHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    justifyContent: 'space-between',
+    marginBottom: 8,
   },
-  cardValor: { fontSize: 26, fontWeight: '700', color: '#1a1a1a' },
-  cardLabel: { fontSize: 12, color: '#666', textAlign: 'center' },
-  cardSub: { fontSize: 11, fontWeight: '600', marginTop: 2 },
+  cardLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COR.textoMedio,
+    letterSpacing: 0.8,
+  },
+  cardValor: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: COR.textoPrincipal,
+    letterSpacing: -0.5,
+    lineHeight: 38,
+  },
+  cardSub: {
+    fontSize: 12,
+    color: COR.textoMedio,
+  },
+
+  // ============ SECÇÃO ============
   sectionTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#1a1a1a',
-    marginTop: 16,
-    marginBottom: 8,
+    color: COR.textoPrincipal,
+    marginTop: 12,
+    marginBottom: 16,
+    letterSpacing: -0.2,
   },
-  motivosLista: { gap: 12 },
-  motivoRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+
+  // ============ MOTIVOS ============
+  motivosLista: {
+    gap: 14,
+  },
+  motivoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
   motivoLabel: {
-    width: 120,
+    width: 160,
     fontSize: 13,
-    color: '#333',
+    color: COR.textoPrincipal,
     fontWeight: '500',
   },
   barraWrapper: {
     flex: 1,
-    height: 20,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 10,
+    height: 8,
+    backgroundColor: COR.divisoria,
+    borderRadius: 4,
     overflow: 'hidden',
   },
-  barra: { height: '100%', borderRadius: 10 },
+  barra: {
+    height: '100%',
+    borderRadius: 4,
+  },
   motivoValor: {
-    width: 28,
-    fontSize: 13,
+    width: 32,
+    fontSize: 14,
     fontWeight: '700',
-    color: '#1a1a1a',
+    color: COR.textoPrincipal,
     textAlign: 'right',
   },
+
+  // ============ FILTROS ============
   filtros: {
     flexDirection: 'row',
     gap: 8,
-    marginBottom: 16,
+    marginBottom: 20,
     flexWrap: 'wrap',
   },
   filtroBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#f0f0f0',
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 8,
+    backgroundColor: COR.card,
+    borderWidth: 1,
+    borderColor: COR.borda,
   },
-  filtroBtnActive: { backgroundColor: '#007AFF' },
-  filtroText: { fontSize: 13, color: '#333', fontWeight: '500' },
-  filtroTextActive: { color: '#fff' },
+  filtroBtnActive: {
+    backgroundColor: COR.acento,
+    borderColor: COR.acento,
+  },
+  filtroText: {
+    fontSize: 13,
+    color: COR.textoMedio,
+    fontWeight: '600',
+  },
+  filtroTextActive: {
+    color: '#fff',
+  },
+
+  // ============ ESTADO VAZIO ============
   emptyContainer: {
     alignItems: 'center',
     paddingVertical: 60,
     gap: 12,
   },
-  emptyTitle: { fontSize: 18, fontWeight: '600', color: '#333' },
-  emptySub: { fontSize: 14, color: '#999' },
+  emptyIconCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: COR.divisoria,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  emptyTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: COR.textoPrincipal,
+  },
+  emptySub: {
+    fontSize: 13,
+    color: COR.textoMedio,
+    textAlign: 'center',
+    maxWidth: 320,
+  },
+
+  // ============ CARDS DE DENÚNCIA ============
   reportCard: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#f0f0f0',
+    backgroundColor: COR.card,
     borderRadius: 12,
-    padding: 16,
+    borderWidth: 1,
+    borderColor: COR.borda,
+    borderLeftWidth: 4,
+    padding: 20,
     marginBottom: 12,
-    gap: 8,
+    gap: 12,
+    ...(Platform.OS === 'web'
+      ? { boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }
+      : {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.04,
+          shadowRadius: 3,
+          elevation: 1,
+        }),
   },
   reportHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: COR.divisoria,
   },
-  reportMotivo: { fontSize: 15, fontWeight: '700', color: '#1a1a1a' },
-  estadoBadge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10 },
-  estadoText: { fontSize: 10, fontWeight: '700' },
-  reportMeta: { fontSize: 13, color: '#666' },
-  bold: { fontWeight: '700', color: '#333' },
-  reportContent: {
-    backgroundColor: '#fafafa',
-    borderRadius: 8,
-    padding: 10,
-    marginTop: 4,
+  reportMotivo: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: COR.textoPrincipal,
+    letterSpacing: -0.2,
   },
-  reportContentLabel: {
+  estadoWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  estadoDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  estadoLabel: {
     fontSize: 11,
-    color: '#999',
-    fontWeight: '600',
-    marginBottom: 4,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
-  reportContentText: { fontSize: 14, color: '#333', lineHeight: 20 },
+  reportMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  reportMetaLabel: {
+    fontSize: 12,
+    color: COR.textoClaro,
+    width: 110,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    fontWeight: '600',
+  },
+  reportMetaValue: {
+    fontSize: 13,
+    color: COR.textoPrincipal,
+    fontWeight: '500',
+    flex: 1,
+  },
+  bloco: {
+    backgroundColor: COR.divisoria,
+    borderRadius: 8,
+    padding: 14,
+    marginTop: 4,
+    gap: 6,
+  },
+  blocoLabel: {
+    fontSize: 10,
+    color: COR.textoClaro,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+  },
+  blocoText: {
+    fontSize: 14,
+    color: COR.textoPrincipal,
+    lineHeight: 20,
+  },
   reportActions: {
     flexDirection: 'row',
     gap: 8,
@@ -761,15 +983,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
-    paddingVertical: 10,
+    gap: 6,
+    paddingVertical: 11,
     borderRadius: 8,
+    borderWidth: 1,
   },
-  actionVer: { backgroundColor: '#007AFF' },
-  actionIgnorar: { backgroundColor: '#999' },
-  actionRemover: { backgroundColor: '#FF3B30' },
-  actionText: { color: '#fff', fontSize: 12, fontWeight: '600' },
-  placeholder: { alignItems: 'center', paddingVertical: 80, gap: 12 },
-  placeholderText: { fontSize: 18, fontWeight: '600', color: '#333' },
-  placeholderSub: { fontSize: 14, color: '#999' },
+  actionVer: {
+    backgroundColor: COR.acentoClaro,
+    borderColor: COR.acento + '30',
+  },
+  actionIgnorar: {
+    backgroundColor: COR.neutroClaro,
+    borderColor: COR.borda,
+  },
+  actionRemover: {
+    backgroundColor: COR.perigo,
+    borderColor: COR.perigo,
+  },
+  actionText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+
+  // ============ PLACEHOLDER ============
+  placeholder: {
+    alignItems: 'center',
+    paddingVertical: 60,
+    gap: 12,
+  },
 });
