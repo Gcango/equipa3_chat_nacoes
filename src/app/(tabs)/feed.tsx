@@ -2,29 +2,29 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Dimensions,
-    FlatList,
-    Image,
-    NativeScrollEvent,
-    NativeSyntheticEvent,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Dimensions,
+  FlatList,
+  Image,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenContainer } from '../../components/ScreenContainer';
 import { escutarContagemComentarios } from '../../services/comments';
 import { auth } from '../../services/firebase';
 import {
-    addLike,
-    escutarPosts,
-    formatarTempoRelativo,
-    Post,
-    removeLike,
+  addLike,
+  escutarPosts,
+  formatarTempoRelativo,
+  Post,
+  removeLike,
 } from '../../services/posts';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -274,7 +274,7 @@ function CommentButton({
       style={styles.postAction}
       onPress={() =>
         router.push(
-          `/(tabs)/comments/${postId}?postAutorId=${postAutorId}` as any
+          `/comments/${postId}?postAutorId=${postAutorId}` as any
         )
       }
     >

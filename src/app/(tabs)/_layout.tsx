@@ -25,9 +25,9 @@ export default function TabsLayout() {
             <Tabs.Screen name="notifications" />
             <Tabs.Screen name="profile" />
             <Tabs.Screen name="create-post" options={{ href: null }} />
-            <Tabs.Screen name="comments/[postId]" options={{ href: null }} />
             <Tabs.Screen name="user/[userId]" options={{ href: null }} />
             <Tabs.Screen name="follows/[userId]" options={{ href: null }} />
+            <Tabs.Screen name="edit-profile" options={{ href: null }} />
           </Tabs>
         </View>
       </View>
@@ -83,9 +83,9 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen name="create-post" options={{ href: null }} />
-      <Tabs.Screen name="comments/[postId]" options={{ href: null }} />
       <Tabs.Screen name="user/[userId]" options={{ href: null }} />
       <Tabs.Screen name="follows/[userId]" options={{ href: null }} />
+      <Tabs.Screen name="edit-profile" options={{ href: null }} />
     </Tabs>
   );
 }

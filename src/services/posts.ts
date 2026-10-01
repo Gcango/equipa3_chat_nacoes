@@ -11,6 +11,7 @@ import {
   serverTimestamp,
   Timestamp,
   updateDoc,
+  where,
 } from 'firebase/firestore';
 import { auth, db } from './firebase';
 import { uploadImagensPost } from './storage';
@@ -60,19 +61,19 @@ export async function criarPost(
 }
 
 /**
- * Escuta publicações em tempo real
+ * Escuta TODAS as publicações em tempo real
  */
 export function escutarPosts(callback: (posts: Post[]) => void): () => void {
   const postsRef = collection(db, 'posts');
   const q = query(postsRef, orderBy('criadoEm', 'desc'));
 
-  const unsubscribe = onSnapshot(
+  return onSnapshot(
     q,
     (snapshot) => {
-      const lista: Post[] = snapshot.docs.map((doc) => {
-        const data = doc.data();
+      const lista: Post[] = snapshot.docs.map((d) => {
+        const data = d.data();
         return {
-          id: doc.id,
+          id: d.id,
           ...data,
           imagens: data.imagens || [],
           curtidas: data.curtidas || [],
@@ -84,8 +85,55 @@ export function escutarPosts(callback: (posts: Post[]) => void): () => void {
       console.error('Erro ao escutar posts:', error);
     }
   );
+}
 
-  return unsubscribe;
+/**
+ * Escuta posts de um utilizador específico (para grid de perfil)
+ */
+export function escutarPostsDoUser(
+  userId: string,
+  callback: (posts: Post[]) => void
+): () => void {
+  const postsRef = collection(db, 'posts');
+  const q = query(
+    postsRef,
+    where('autorId', '==', userId),
+    orderBy('criadoEm', 'desc')
+  );
+
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const lista: Post[] = snapshot.docs.map((d) => {
+        const data = d.data();
+        return {
+          id: d.id,
+          ...data,
+          imagens: data.imagens || [],
+          curtidas: data.curtidas || [],
+        } as Post;
+      });
+      callback(lista);
+    },
+    (error) => {
+      console.error('Erro ao escutar posts do user:', error);
+    }
+  );
+}
+
+/**
+ * Escuta contagem de posts de um utilizador (para perfil)
+ */
+export function escutarContagemPosts(
+  userId: string,
+  callback: (total: number) => void
+): () => void {
+  const postsRef = collection(db, 'posts');
+  const q = query(postsRef, where('autorId', '==', userId));
+
+  return onSnapshot(q, (snapshot) => {
+    callback(snapshot.size);
+  });
 }
 
 /**
@@ -97,33 +145,29 @@ export async function apagarPost(postId: string): Promise<void> {
 }
 
 /**
- * Adiciona um like (uid entra no array 'curtidas')
+ * Adiciona um like
  */
 export async function addLike(postId: string): Promise<void> {
   const user = auth.currentUser;
   if (!user) throw new Error('Utilizador não autenticado');
 
   const postRef = doc(db, 'posts', postId);
-  await updateDoc(postRef, {
-    curtidas: arrayUnion(user.uid),
-  });
+  await updateDoc(postRef, { curtidas: arrayUnion(user.uid) });
 }
 
 /**
- * Remove um like (uid sai do array 'curtidas')
+ * Remove um like
  */
 export async function removeLike(postId: string): Promise<void> {
   const user = auth.currentUser;
   if (!user) throw new Error('Utilizador não autenticado');
 
   const postRef = doc(db, 'posts', postId);
-  await updateDoc(postRef, {
-    curtidas: arrayRemove(user.uid),
-  });
+  await updateDoc(postRef, { curtidas: arrayRemove(user.uid) });
 }
 
 /**
- * Converte timestamp em texto relativo ("há 5 min")
+ * Converte timestamp em texto relativo
  */
 export function formatarTempoRelativo(timestamp: Timestamp | null): string {
   if (!timestamp) return 'agora';

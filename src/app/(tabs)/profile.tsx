@@ -1,44 +1,51 @@
-import * as ImagePicker from 'expo-image-picker';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { signOut } from 'firebase/auth';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Image,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { PostGrid } from '../../components/PostGrid';
 import { ScreenContainer } from '../../components/ScreenContainer';
 import { auth } from '../../services/firebase';
-import { uploadFotoPerfil } from '../../services/storage';
+import { escutarContadores } from '../../services/follows';
+import { escutarContagemPosts } from '../../services/posts';
 import {
   getUserProfile,
   marcarEmailVerificado,
-  updateUserProfile,
   UserProfile,
 } from '../../services/users';
+
+const ROLE_CORES: Record<string, string> = {
+  aluno: '#007AFF',
+  professor: '#34C759',
+  admin: '#FF3B30',
+};
+
+type Aba = 'posts' | 'reels';
 
 export default function ProfileScreen() {
   const router = useRouter();
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [nome, setNome] = useState('');
-  const [bio, setBio] = useState('');
-  const [fotoURL, setFotoURL] = useState('');
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [uploadingFoto, setUploadingFoto] = useState(false);
+  const [contadores, setContadores] = useState({
+    seguidores: 0,
+    aSeguir: 0,
+    publicacoes: 0,
+  });
+  const [abaAtiva, setAbaAtiva] = useState<Aba>('posts');
 
   useEffect(() => {
-    carregarPerfil();
+    carregar();
   }, []);
 
-  async function carregarPerfil() {
+  async function carregar() {
     try {
       const user = auth.currentUser;
       if (!user) {
@@ -52,86 +59,34 @@ export default function ProfileScreen() {
 
       const dados = await getUserProfile(user.uid);
       if (dados) {
-        setProfile({ ...dados, emailVerificado: user.emailVerified });
-        setNome(dados.nome || '');
-        setBio(dados.bio || '');
-        setFotoURL(dados.fotoURL || '');
+        setProfile({ ...dados, emailVerified: user.emailVerified });
       }
     } catch (error) {
-      Alert.alert('Erro', 'Não foi possível carregar o perfil.');
       console.error(error);
     } finally {
       setLoading(false);
     }
   }
 
-  async function escolherFoto() {
-    if (Platform.OS !== 'web') {
-      const permissao = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permissao.granted) {
-        Alert.alert('Permissão necessária', 'Precisamos de acesso à galeria.');
-        return;
-      }
-    }
+  useEffect(() => {
+    if (!profile) return;
 
-    const resultado = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.7,
+    const unsub1 = escutarContadores(profile.uid, (data) => {
+      setContadores((prev) => ({
+        ...prev,
+        seguidores: data.seguidores,
+        aSeguir: data.aSeguir,
+      }));
+    });
+    const unsub2 = escutarContagemPosts(profile.uid, (total) => {
+      setContadores((prev) => ({ ...prev, publicacoes: total }));
     });
 
-    if (!resultado.canceled && resultado.assets[0]) {
-      await processarFoto(resultado.assets[0].uri);
-    }
-  }
-
-  async function processarFoto(uri: string) {
-    if (!profile) return;
-
-    setUploadingFoto(true);
-    try {
-      const url = await uploadFotoPerfil(profile.uid, uri);
-      await updateUserProfile(profile.uid, { fotoURL: url });
-      setFotoURL(url);
-      setProfile({ ...profile, fotoURL: url });
-      Alert.alert('Sucesso', 'Foto de perfil atualizada!');
-    } catch (error) {
-      Alert.alert('Erro', 'Não foi possível atualizar a foto.');
-      console.error(error);
-    } finally {
-      setUploadingFoto(false);
-    }
-  }
-
-  async function guardarAlteracoes() {
-    if (!profile) return;
-
-    setSaving(true);
-    try {
-      await updateUserProfile(profile.uid, { nome, bio });
-      Alert.alert('Guardado!', 'O teu perfil foi atualizado.');
-      setProfile({ ...profile, nome, bio });
-    } catch (error) {
-      Alert.alert('Erro', 'Não foi possível guardar as alterações.');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleLogout() {
-    Alert.alert('Terminar sessão', 'Tens a certeza?', [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Sair',
-        style: 'destructive',
-        onPress: async () => {
-          await signOut(auth);
-          router.replace('/(auth)/login');
-        },
-      },
-    ]);
-  }
+    return () => {
+      unsub1();
+      unsub2();
+    };
+  }, [profile]);
 
   if (loading) {
     return (
@@ -153,191 +108,240 @@ export default function ProfileScreen() {
     );
   }
 
+  const roleCor = ROLE_CORES[profile.role] || '#666';
+  const nomeExibir = profile.nome || profile.email.split('@')[0];
+
   return (
     <ScreenContainer>
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={escolherFoto} disabled={uploadingFoto}>
-            <View style={styles.avatar}>
-              {uploadingFoto ? (
-                <ActivityIndicator color="#fff" size="large" />
-              ) : fotoURL ? (
-                <Image source={{ uri: fotoURL }} style={styles.avatarImage} />
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={styles.headerTitle}>{nomeExibir}</Text>
+            <TouchableOpacity
+              onPress={() => router.push('/(tabs)/edit-profile' as any)}
+            >
+              <Ionicons name="ellipsis-horizontal" size={24} color="#1a1a1a" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Avatar + Contadores */}
+          <View style={styles.topRow}>
+            <View style={styles.avatarWrapper}>
+              {profile.fotoURL ? (
+                <Image source={{ uri: profile.fotoURL }} style={styles.avatar} />
               ) : (
-                <Text style={styles.avatarText}>
-                  {nome
-                    ? nome.charAt(0).toUpperCase()
-                    : profile.email.charAt(0).toUpperCase()}
-                </Text>
+                <View style={[styles.avatar, styles.avatarFallback]}>
+                  <Text style={styles.avatarText}>
+                    {nomeExibir.charAt(0).toUpperCase()}
+                  </Text>
+                </View>
               )}
             </View>
-            <View style={styles.cameraBadge}>
-              <Text style={styles.cameraBadgeText}>📷</Text>
+
+            <View style={styles.stats}>
+              <View style={styles.statItem}>
+                <Text style={styles.statNum}>{contadores.publicacoes}</Text>
+                <Text style={styles.statLabel}>publicações</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.statItem}
+                onPress={() =>
+                  router.push(
+                    `/(tabs)/follows/${profile.uid}?tipo=seguidores` as any
+                  )
+                }
+              >
+                <Text style={styles.statNum}>{contadores.seguidores}</Text>
+                <Text style={styles.statLabel}>seguidores</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.statItem}
+                onPress={() =>
+                  router.push(
+                    `/(tabs)/follows/${profile.uid}?tipo=aSeguir` as any
+                  )
+                }
+              >
+                <Text style={styles.statNum}>{contadores.aSeguir}</Text>
+                <Text style={styles.statLabel}>a seguir</Text>
+              </TouchableOpacity>
             </View>
-          </TouchableOpacity>
-
-          <Text style={styles.email}>{profile.email}</Text>
-          <View style={styles.roleBadge}>
-            <Text style={styles.roleText}>{profile.role}</Text>
           </View>
-        </View>
 
-        <View style={styles.form}>
-          <Text style={styles.label}>Nome</Text>
-          <TextInput
-            style={styles.input}
-            value={nome}
-            onChangeText={setNome}
-            placeholder="O teu nome"
-            placeholderTextColor="#999"
-          />
+          {/* Nome + Bio */}
+          <View style={styles.bio}>
+            <Text style={styles.nome}>{nomeExibir}</Text>
+            <View style={[styles.roleBadge, { backgroundColor: roleCor + '20' }]}>
+              <Text style={[styles.roleText, { color: roleCor }]}>
+                {profile.role}
+              </Text>
+            </View>
+            {profile.bio ? (
+              <Text style={styles.bioText}>{profile.bio}</Text>
+            ) : null}
+          </View>
 
-          <Text style={styles.label}>Bio</Text>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            value={bio}
-            onChangeText={setBio}
-            placeholder="Fala um pouco sobre ti..."
-            placeholderTextColor="#999"
-            multiline
-            numberOfLines={4}
-          />
-
+          {/* Botão Editar perfil */}
           <TouchableOpacity
-            style={[styles.saveButton, saving && styles.buttonDisabled]}
-            onPress={guardarAlteracoes}
-            disabled={saving}
+            style={styles.editButton}
+            onPress={() => router.push('/(tabs)/edit-profile' as any)}
           >
-            {saving ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.saveButtonText}>Guardar alterações</Text>
-            )}
+            <Text style={styles.editButtonText}>Editar perfil</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-            <Text style={styles.logoutButtonText}>Terminar sessão</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
+          {/* Abas */}
+          <View style={styles.tabs}>
+            <TouchableOpacity
+              style={[styles.tab, abaAtiva === 'posts' && styles.tabActive]}
+              onPress={() => setAbaAtiva('posts')}
+            >
+              <Ionicons
+                name="grid-outline"
+                size={22}
+                color={abaAtiva === 'posts' ? '#1a1a1a' : '#999'}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.tab, abaAtiva === 'reels' && styles.tabActive]}
+              onPress={() => setAbaAtiva('reels')}
+            >
+              <Ionicons
+                name="videocam-outline"
+                size={22}
+                color={abaAtiva === 'reels' ? '#1a1a1a' : '#999'}
+              />
+            </TouchableOpacity>
+          </View>
+
+          {/* Conteúdo */}
+          {abaAtiva === 'posts' ? (
+            <PostGrid userId={profile.uid} />
+          ) : (
+            <View style={styles.emptyTab}>
+              <Ionicons name="videocam-outline" size={48} color="#ccc" />
+              <Text style={styles.emptyTabText}>Reels em breve</Text>
+            </View>
+          )}
+        </ScrollView>
+      </SafeAreaView>
     </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  content: {
-    padding: 24,
-    paddingBottom: 48,
-  },
+  safeArea: { flex: 1, backgroundColor: '#fff' },
+  scrollContent: { paddingBottom: 24 },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
   header: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 32,
-    marginTop: 16,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1a1a1a',
+  },
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginBottom: 16,
+  },
+  avatarWrapper: { marginRight: 24 },
   avatar: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 86,
+    height: 86,
+    borderRadius: 43,
     backgroundColor: '#007AFF',
+  },
+  avatarFallback: {
     justifyContent: 'center',
     alignItems: 'center',
-    overflow: 'hidden',
-  },
-  avatarImage: {
-    width: '100%',
-    height: '100%',
   },
   avatarText: {
     color: '#fff',
-    fontSize: 48,
+    fontSize: 34,
     fontWeight: 'bold',
   },
-  cameraBadge: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    backgroundColor: '#fff',
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#007AFF',
+  stats: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
   },
-  cameraBadgeText: {
-    fontSize: 18,
+  statItem: { alignItems: 'center' },
+  statNum: { fontSize: 17, fontWeight: '700', color: '#1a1a1a' },
+  statLabel: { fontSize: 12, color: '#666', marginTop: 2 },
+  bio: {
+    paddingHorizontal: 20,
+    marginBottom: 16,
   },
-  email: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  roleBadge: {
-    backgroundColor: '#e8f0fe',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  roleText: {
-    color: '#007AFF',
-    fontSize: 12,
+  nome: {
+    fontSize: 15,
     fontWeight: '600',
-    textTransform: 'capitalize',
-  },
-  form: {
-    gap: 8,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginTop: 12,
+    color: '#1a1a1a',
     marginBottom: 4,
   },
-  input: {
-    backgroundColor: '#f5f5f5',
+  roleBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
     borderRadius: 8,
-    padding: 14,
-    fontSize: 16,
-    color: '#000',
+    marginBottom: 8,
   },
-  textArea: {
-    height: 100,
-    textAlignVertical: 'top',
+  roleText: {
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
   },
-  saveButton: {
-    backgroundColor: '#007AFF',
+  bioText: {
+    fontSize: 14,
+    color: '#333',
+    lineHeight: 20,
+  },
+  editButton: {
+    marginHorizontal: 20,
+    marginBottom: 20,
+    backgroundColor: '#efefef',
+    paddingVertical: 10,
     borderRadius: 8,
-    padding: 16,
     alignItems: 'center',
-    marginTop: 24,
   },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  saveButtonText: {
-    color: '#fff',
-    fontSize: 16,
+  editButtonText: {
+    fontSize: 14,
     fontWeight: '600',
+    color: '#1a1a1a',
   },
-  logoutButton: {
-    borderWidth: 1,
-    borderColor: '#ff3b30',
-    borderRadius: 8,
-    padding: 16,
+  tabs: {
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+    marginBottom: 4,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 12,
     alignItems: 'center',
-    marginTop: 12,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
   },
-  logoutButtonText: {
-    color: '#ff3b30',
-    fontSize: 16,
-    fontWeight: '600',
+  tabActive: {
+    borderBottomColor: '#1a1a1a',
+  },
+  emptyTab: {
+    paddingVertical: 60,
+    alignItems: 'center',
+    gap: 12,
+  },
+  emptyTabText: {
+    fontSize: 14,
+    color: '#999',
   },
 });

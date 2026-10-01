@@ -23,9 +23,9 @@ import {
   escutarComentarios,
   responderComentario,
   Resposta,
-} from '../../../services/comments';
-import { auth } from '../../../services/firebase';
-import { formatarTempoRelativo } from '../../../services/posts';
+} from '../../services/comments';
+import { auth } from '../../services/firebase';
+import { formatarTempoRelativo } from '../../services/posts';
 
 const ROLE_CORES: Record<string, string> = {
   aluno: '#007AFF',
@@ -33,9 +33,6 @@ const ROLE_CORES: Record<string, string> = {
   admin: '#FF3B30',
 };
 
-/**
- * Formata uma data (aceita Timestamp do Firestore ou string ISO)
- */
 function formatarTempo(valor: any): string {
   if (!valor) return 'agora';
 
@@ -67,8 +64,6 @@ export default function CommentsScreen() {
   const [texto, setTexto] = useState('');
   const [loading, setLoading] = useState(true);
   const [enviando, setEnviando] = useState(false);
-
-  // Estado para "a responder a"
   const [respondendoA, setRespondendoA] = useState<{
     comentarioId: string;
     nomeAutor: string;
@@ -92,11 +87,9 @@ export default function CommentsScreen() {
     setEnviando(true);
     try {
       if (respondendoA) {
-        // Estou a responder a um comentário
         await responderComentario(postId, respondendoA.comentarioId, texto);
         setRespondendoA(null);
       } else {
-        // Comentário normal
         await criarComentario(postId, texto);
         setTimeout(() => {
           flatListRef.current?.scrollToEnd({ animated: true });
@@ -276,7 +269,6 @@ export default function CommentsScreen() {
 
             <Text style={styles.comentarioTexto}>{item.texto}</Text>
 
-            {/* Botão responder */}
             <TouchableOpacity
               style={styles.responderButton}
               onPress={() => iniciarResposta(item)}
@@ -284,7 +276,6 @@ export default function CommentsScreen() {
               <Text style={styles.responderText}>Responder</Text>
             </TouchableOpacity>
 
-            {/* Respostas */}
             {item.respostas && item.respostas.length > 0 && (
               <View style={styles.respostasContainer}>
                 {item.respostas.map((r) => (
@@ -310,7 +301,10 @@ export default function CommentsScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backButton}
+        >
           <Ionicons name="chevron-back" size={26} color="#1a1a1a" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Comentários</Text>
@@ -342,11 +336,13 @@ export default function CommentsScreen() {
           />
         )}
 
-        {/* Barra de "A responder a..." */}
         {respondendoA && (
           <View style={styles.respondingBar}>
             <Text style={styles.respondingText}>
-              A responder a <Text style={styles.respondingNome}>{respondendoA.nomeAutor}</Text>
+              A responder a{' '}
+              <Text style={styles.respondingNome}>
+                {respondendoA.nomeAutor}
+              </Text>
             </Text>
             <TouchableOpacity onPress={cancelarResposta}>
               <Ionicons name="close-circle" size={20} color="#666" />

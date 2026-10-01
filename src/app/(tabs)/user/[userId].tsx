@@ -2,18 +2,20 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Image,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FollowButton } from '../../../components/FollowButton';
+import { PostGrid } from '../../../components/PostGrid';
 import { escutarContadores } from '../../../services/follows';
-import { UserProfile, getUserProfile } from '../../../services/users';
+import { escutarContagemPosts } from '../../../services/posts';
+import { getUserProfile, UserProfile } from '../../../services/users';
 
 const ROLE_CORES: Record<string, string> = {
   aluno: '#007AFF',
@@ -21,12 +23,19 @@ const ROLE_CORES: Record<string, string> = {
   admin: '#FF3B30',
 };
 
+type Aba = 'posts' | 'reels';
+
 export default function UserProfileScreen() {
   const router = useRouter();
   const { userId } = useLocalSearchParams<{ userId: string }>();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [contadores, setContadores] = useState({ seguidores: 0, aSeguir: 0 });
+  const [contadores, setContadores] = useState({
+    seguidores: 0,
+    aSeguir: 0,
+    publicacoes: 0,
+  });
+  const [abaAtiva, setAbaAtiva] = useState<Aba>('posts');
 
   useEffect(() => {
     if (!userId) return;
@@ -38,8 +47,21 @@ export default function UserProfileScreen() {
       })
       .catch(() => setLoading(false));
 
-    const unsub = escutarContadores(userId, setContadores);
-    return () => unsub();
+    const unsub1 = escutarContadores(userId, (data) => {
+      setContadores((prev) => ({
+        ...prev,
+        seguidores: data.seguidores,
+        aSeguir: data.aSeguir,
+      }));
+    });
+    const unsub2 = escutarContagemPosts(userId, (total) => {
+      setContadores((prev) => ({ ...prev, publicacoes: total }));
+    });
+
+    return () => {
+      unsub1();
+      unsub2();
+    };
   }, [userId]);
 
   if (loading) {
@@ -59,6 +81,8 @@ export default function UserProfileScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="chevron-back" size={26} color="#1a1a1a" />
           </TouchableOpacity>
+          <Text style={styles.headerTitle}>Perfil</Text>
+          <View style={styles.backBtn} />
         </View>
         <View style={styles.loadingContainer}>
           <Text>Utilizador não encontrado.</Text>
@@ -68,6 +92,7 @@ export default function UserProfileScreen() {
   }
 
   const roleCor = ROLE_CORES[profile.role] || '#666';
+  const nomeExibir = profile.nome || profile.email.split('@')[0];
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -75,12 +100,11 @@ export default function UserProfileScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="chevron-back" size={26} color="#1a1a1a" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Perfil</Text>
+        <Text style={styles.headerTitle}>{nomeExibir}</Text>
         <View style={styles.backBtn} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
-        {/* Avatar + Contadores */}
+      <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.topRow}>
           <View style={styles.avatarWrapper}>
             {profile.fotoURL ? (
@@ -88,8 +112,7 @@ export default function UserProfileScreen() {
             ) : (
               <View style={[styles.avatar, styles.avatarFallback]}>
                 <Text style={styles.avatarText}>
-                  {profile.nome?.charAt(0).toUpperCase() ||
-                    profile.email.charAt(0).toUpperCase()}
+                  {nomeExibir.charAt(0).toUpperCase()}
                 </Text>
               </View>
             )}
@@ -97,13 +120,15 @@ export default function UserProfileScreen() {
 
           <View style={styles.stats}>
             <View style={styles.statItem}>
-              <Text style={styles.statNum}>0</Text>
+              <Text style={styles.statNum}>{contadores.publicacoes}</Text>
               <Text style={styles.statLabel}>publicações</Text>
             </View>
             <TouchableOpacity
               style={styles.statItem}
               onPress={() =>
-                router.push(`/(tabs)/follows/${profile.uid}?tipo=seguidores` as any)
+                router.push(
+                  `/(tabs)/follows/${profile.uid}?tipo=seguidores` as any
+                )
               }
             >
               <Text style={styles.statNum}>{contadores.seguidores}</Text>
@@ -112,7 +137,9 @@ export default function UserProfileScreen() {
             <TouchableOpacity
               style={styles.statItem}
               onPress={() =>
-                router.push(`/(tabs)/follows/${profile.uid}?tipo=aSeguir` as any)
+                router.push(
+                  `/(tabs)/follows/${profile.uid}?tipo=aSeguir` as any
+                )
               }
             >
               <Text style={styles.statNum}>{contadores.aSeguir}</Text>
@@ -121,11 +148,8 @@ export default function UserProfileScreen() {
           </View>
         </View>
 
-        {/* Nome + Bio + Role */}
         <View style={styles.bio}>
-          <Text style={styles.nome}>
-            {profile.nome || profile.email.split('@')[0]}
-          </Text>
+          <Text style={styles.nome}>{nomeExibir}</Text>
           <View style={[styles.roleBadge, { backgroundColor: roleCor + '20' }]}>
             <Text style={[styles.roleText, { color: roleCor }]}>
               {profile.role}
@@ -134,25 +158,41 @@ export default function UserProfileScreen() {
           {profile.bio ? <Text style={styles.bioText}>{profile.bio}</Text> : null}
         </View>
 
-        {/* Botão Seguir */}
         <View style={styles.actions}>
           <FollowButton userId={profile.uid} />
         </View>
 
-        {/* Placeholder grid */}
-        <View style={styles.divider} />
-        <View style={styles.tabBar}>
-          <View style={styles.tabActive}>
-            <Ionicons name="grid-outline" size={20} color="#1a1a1a" />
-          </View>
-          <View style={styles.tabInactive}>
-            <Ionicons name="videocam-outline" size={20} color="#999" />
-          </View>
+        <View style={styles.tabs}>
+          <TouchableOpacity
+            style={[styles.tab, abaAtiva === 'posts' && styles.tabActive]}
+            onPress={() => setAbaAtiva('posts')}
+          >
+            <Ionicons
+              name="grid-outline"
+              size={22}
+              color={abaAtiva === 'posts' ? '#1a1a1a' : '#999'}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, abaAtiva === 'reels' && styles.tabActive]}
+            onPress={() => setAbaAtiva('reels')}
+          >
+            <Ionicons
+              name="videocam-outline"
+              size={22}
+              color={abaAtiva === 'reels' ? '#1a1a1a' : '#999'}
+            />
+          </TouchableOpacity>
         </View>
-        <View style={styles.emptyGrid}>
-          <Ionicons name="images-outline" size={48} color="#ccc" />
-          <Text style={styles.emptyText}>Ainda sem publicações</Text>
-        </View>
+
+        {abaAtiva === 'posts' ? (
+          <PostGrid userId={profile.uid} />
+        ) : (
+          <View style={styles.emptyTab}>
+            <Ionicons name="videocam-outline" size={48} color="#ccc" />
+            <Text style={styles.emptyTabText}>Reels em breve</Text>
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -170,20 +210,41 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
-  backBtn: { width: 34, height: 34, justifyContent: 'center', alignItems: 'center' },
+  backBtn: {
+    width: 34,
+    height: 34,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   headerTitle: { fontSize: 17, fontWeight: '600', color: '#1a1a1a' },
-  content: { padding: 20 },
-  topRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
+  scrollContent: { paddingBottom: 24 },
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    marginBottom: 16,
+  },
   avatarWrapper: { marginRight: 24 },
-  avatar: { width: 90, height: 90, borderRadius: 45, backgroundColor: '#007AFF' },
+  avatar: {
+    width: 86,
+    height: 86,
+    borderRadius: 43,
+    backgroundColor: '#007AFF',
+  },
   avatarFallback: { justifyContent: 'center', alignItems: 'center' },
-  avatarText: { color: '#fff', fontSize: 36, fontWeight: 'bold' },
+  avatarText: { color: '#fff', fontSize: 34, fontWeight: 'bold' },
   stats: { flex: 1, flexDirection: 'row', justifyContent: 'space-around' },
   statItem: { alignItems: 'center' },
   statNum: { fontSize: 17, fontWeight: '700', color: '#1a1a1a' },
   statLabel: { fontSize: 12, color: '#666', marginTop: 2 },
-  bio: { marginBottom: 16 },
-  nome: { fontSize: 15, fontWeight: '600', color: '#1a1a1a', marginBottom: 4 },
+  bio: { paddingHorizontal: 20, marginBottom: 16 },
+  nome: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1a1a1a',
+    marginBottom: 4,
+  },
   roleBadge: {
     alignSelf: 'flex-start',
     paddingHorizontal: 8,
@@ -193,21 +254,26 @@ const styles = StyleSheet.create({
   },
   roleText: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase' },
   bioText: { fontSize: 14, color: '#333', lineHeight: 20 },
-  actions: { flexDirection: 'row', gap: 8, marginBottom: 20 },
-  divider: { height: 1, backgroundColor: '#f0f0f0', marginBottom: 12 },
-  tabBar: {
+  actions: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    gap: 8,
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  tabs: {
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+    marginBottom: 4,
+  },
+  tab: {
+    flex: 1,
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  tabActive: {
-    paddingBottom: 8,
+    alignItems: 'center',
     borderBottomWidth: 2,
-    borderBottomColor: '#1a1a1a',
+    borderBottomColor: 'transparent',
   },
-  tabInactive: { paddingBottom: 8 },
-  emptyGrid: { alignItems: 'center', paddingVertical: 60, gap: 12 },
-  emptyText: { fontSize: 14, color: '#999' },
+  tabActive: { borderBottomColor: '#1a1a1a' },
+  emptyTab: { paddingVertical: 60, alignItems: 'center', gap: 12 },
+  emptyTabText: { fontSize: 14, color: '#999' },
 });
