@@ -22,10 +22,12 @@ export default function TabsLayout() {
           >
             <Tabs.Screen name="feed" />
             <Tabs.Screen name="reels" />
-            <Tabs.Screen name="profile" />
             <Tabs.Screen name="notifications" />
+            <Tabs.Screen name="profile" />
             <Tabs.Screen name="create-post" options={{ href: null }} />
             <Tabs.Screen name="comments/[postId]" options={{ href: null }} />
+            <Tabs.Screen name="user/[userId]" options={{ href: null }} />
+            <Tabs.Screen name="follows/[userId]" options={{ href: null }} />
           </Tabs>
         </View>
       </View>
@@ -47,7 +49,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="feed"
         options={{
-          title: 'Feed',
+          title: 'Início',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="home-outline" size={size} color={color} />
           ),
@@ -63,15 +65,6 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="profile"
-        options={{
-          title: 'Perfil',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
         name="notifications"
         options={{
           title: 'Notificações',
@@ -80,8 +73,19 @@ export default function TabsLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Perfil',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="person-outline" size={size} color={color} />
+          ),
+        }}
+      />
       <Tabs.Screen name="create-post" options={{ href: null }} />
       <Tabs.Screen name="comments/[postId]" options={{ href: null }} />
+      <Tabs.Screen name="user/[userId]" options={{ href: null }} />
+      <Tabs.Screen name="follows/[userId]" options={{ href: null }} />
     </Tabs>
   );
 }

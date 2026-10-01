@@ -53,7 +53,12 @@ export default function FeedScreen() {
   function renderPost({ item }: { item: Post }) {
     return (
       <View style={styles.postCard}>
-        <View style={styles.postHeader}>
+        {/* Header clicável → abre perfil do autor */}
+        <TouchableOpacity
+          style={styles.postHeader}
+          onPress={() => router.push(`/(tabs)/user/${item.autorId}` as any)}
+          activeOpacity={0.7}
+        >
           {item.autorFotoURL ? (
             <Image source={{ uri: item.autorFotoURL }} style={styles.avatar} />
           ) : (
@@ -70,7 +75,7 @@ export default function FeedScreen() {
               {item.autorRole} · {formatarTempoRelativo(item.criadoEm)}
             </Text>
           </View>
-        </View>
+        </TouchableOpacity>
 
         {item.conteudo ? (
           <Text style={styles.postConteudo}>{item.conteudo}</Text>
