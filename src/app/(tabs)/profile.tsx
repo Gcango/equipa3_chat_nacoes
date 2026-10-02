@@ -4,10 +4,12 @@ import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -32,6 +34,9 @@ type Aba = 'posts' | 'reels';
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const isDesktop = Platform.OS === 'web' && width >= 768;
+
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [contadores, setContadores] = useState({
@@ -190,6 +195,19 @@ export default function ProfileScreen() {
             <Text style={styles.editButtonText}>Editar perfil</Text>
           </TouchableOpacity>
 
+          {/* Botão Painel de Administração (só admins e só mobile) */}
+          {profile.role === 'admin' && !isDesktop && (
+            <TouchableOpacity
+              style={styles.adminButton}
+              onPress={() => router.push('/(tabs)/dashboard' as any)}
+            >
+              <Ionicons name="shield-checkmark" size={18} color="#FFFFFF" />
+              <Text style={styles.adminButtonText}>
+                Painel de Administração
+              </Text>
+            </TouchableOpacity>
+          )}
+
           {/* Abas */}
           <View style={styles.tabs}>
             <TouchableOpacity
@@ -308,7 +326,7 @@ const styles = StyleSheet.create({
   },
   editButton: {
     marginHorizontal: 20,
-    marginBottom: 20,
+    marginBottom: 12,
     backgroundColor: '#efefef',
     paddingVertical: 10,
     borderRadius: 8,
@@ -318,6 +336,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#1a1a1a',
+  },
+  adminButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginHorizontal: 20,
+    marginBottom: 20,
+    backgroundColor: '#1E40AF',
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  adminButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   tabs: {
     flexDirection: 'row',
