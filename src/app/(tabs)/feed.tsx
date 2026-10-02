@@ -19,6 +19,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenContainer } from '../../components/ScreenContainer';
+import { StoriesBar } from '../../components/StoriesBar';
 import { escutarContagemComentarios } from '../../services/comments';
 import { auth } from '../../services/firebase';
 import {
@@ -53,19 +54,16 @@ export default function FeedScreen() {
     const user = auth.currentUser;
     if (!user) return;
 
-    // Escuta "Para ti" (só posts de quem sigo)
     const unsub1 = escutarFeedPersonalizado(user.uid, (lista) => {
       setPostsParaTi(lista);
     });
 
-    // Escuta "Explorar" (todos os posts — filtragem no cliente)
     const unsub2 = escutarPosts((lista) => {
       setPostsExplorar(lista);
       setLoading(false);
       setRefreshing(false);
     });
 
-    // Escuta quem eu sigo (para filtrar Explorar)
     const unsub3 = escutarSeguidos(user.uid, setSeguidosIds);
 
     return () => {
@@ -80,7 +78,6 @@ export default function FeedScreen() {
     setTimeout(() => setRefreshing(false), 800);
   }
 
-  // Filtra o Explorar: exclui os meus posts e posts de quem sigo
   const meuUid = auth.currentUser?.uid;
   const postsExplorarFiltrados = postsExplorar.filter((post) => {
     if (post.autorId === meuUid) return false;
@@ -145,7 +142,6 @@ export default function FeedScreen() {
   return (
     <ScreenContainer>
       <SafeAreaView style={styles.safeArea} edges={['top']}>
-        {/* Header */}
         {isDesktop ? (
           <View style={styles.header}>
             <View style={styles.headerSpacer} />
@@ -172,10 +168,16 @@ export default function FeedScreen() {
           </View>
         )}
 
+        {/* Barra de Stories */}
+        <StoriesBar />
+
         {/* Abas internas */}
         <View style={styles.innerTabs}>
           <TouchableOpacity
-            style={[styles.innerTab, abaAtiva === 'parati' && styles.innerTabActive]}
+            style={[
+              styles.innerTab,
+              abaAtiva === 'parati' && styles.innerTabActive,
+            ]}
             onPress={() => setAbaAtiva('parati')}
             activeOpacity={0.7}
           >
@@ -213,7 +215,7 @@ export default function FeedScreen() {
             <Ionicons name="newspaper-outline" size={64} color="#ccc" />
             <Text style={styles.emptyTitle}>
               {abaAtiva === 'parati'
-                ? postsParaTi.length === 0 && seguidosIds.length === 0
+                ? seguidosIds.length === 0
                   ? 'Ainda não segues ninguém'
                   : 'Sem publicações'
                 : 'Tudo visto por aqui'}
@@ -294,10 +296,7 @@ function ImageCarousel({ imagens }: { imagens: string[] }) {
         {imagens.map((_, i) => (
           <View
             key={i}
-            style={[
-              styles.indicator,
-              i === indexAtivo && styles.indicatorActive,
-            ]}
+            style={[styles.indicator, i === indexAtivo && styles.indicatorActive]}
           />
         ))}
       </View>
@@ -384,6 +383,7 @@ function CommentButton({
     </TouchableOpacity>
   );
 }
+
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -419,8 +419,6 @@ const styles = StyleSheet.create({
     color: '#1a1a1a',
     textAlign: 'center',
   },
-
-  // ============ ABAS INTERNAS ============
   innerTabs: {
     flexDirection: 'row',
     backgroundColor: '#fff',
@@ -445,8 +443,6 @@ const styles = StyleSheet.create({
   innerTabTextActive: {
     color: '#007AFF',
   },
-
-  // ============ LISTA ============
   listContent: {
     padding: 8,
     paddingBottom: 24,
@@ -560,8 +556,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#666',
   },
-
-  // ============ ESTADO VAZIO ============
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',

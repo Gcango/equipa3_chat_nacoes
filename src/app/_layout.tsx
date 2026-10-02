@@ -10,6 +10,7 @@ export default function RootLayout() {
       <Stack.Screen name="post/[postId]" />
       <Stack.Screen name="follows/[userId]" />
       <Stack.Screen name="user/[userId]" />
+      <Stack.Screen name="story/[userId]" />
       <Stack.Screen name="setup-admin" />
     </Stack>
   );
