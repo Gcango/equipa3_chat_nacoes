@@ -23,7 +23,9 @@ import { escutarContagemComentarios } from '../../services/comments';
 import { auth } from '../../services/firebase';
 import {
   addLike,
+  escutarFeedPersonalizado,
   escutarPosts,
+  escutarSeguidos,
   formatarTempoRelativo,
   Post,
   removeLike,
@@ -33,28 +35,60 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const IMAGE_WIDTH = Math.min(SCREEN_WIDTH - 32, 568);
 const DESKTOP_BREAKPOINT = 768;
 
+type Aba = 'parati' | 'explorar';
+
 export default function FeedScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const isDesktop = Platform.OS === 'web' && width >= DESKTOP_BREAKPOINT;
 
-  const [posts, setPosts] = useState<Post[]>([]);
+  const [abaAtiva, setAbaAtiva] = useState<Aba>('parati');
+  const [postsParaTi, setPostsParaTi] = useState<Post[]>([]);
+  const [postsExplorar, setPostsExplorar] = useState<Post[]>([]);
+  const [seguidosIds, setSeguidosIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = escutarPosts((lista) => {
-      setPosts(lista);
+    const user = auth.currentUser;
+    if (!user) return;
+
+    // Escuta "Para ti" (só posts de quem sigo)
+    const unsub1 = escutarFeedPersonalizado(user.uid, (lista) => {
+      setPostsParaTi(lista);
+    });
+
+    // Escuta "Explorar" (todos os posts — filtragem no cliente)
+    const unsub2 = escutarPosts((lista) => {
+      setPostsExplorar(lista);
       setLoading(false);
       setRefreshing(false);
     });
-    return () => unsubscribe();
+
+    // Escuta quem eu sigo (para filtrar Explorar)
+    const unsub3 = escutarSeguidos(user.uid, setSeguidosIds);
+
+    return () => {
+      unsub1();
+      unsub2();
+      unsub3();
+    };
   }, []);
 
   function onRefresh() {
     setRefreshing(true);
     setTimeout(() => setRefreshing(false), 800);
   }
+
+  // Filtra o Explorar: exclui os meus posts e posts de quem sigo
+  const meuUid = auth.currentUser?.uid;
+  const postsExplorarFiltrados = postsExplorar.filter((post) => {
+    if (post.autorId === meuUid) return false;
+    if (seguidosIds.includes(post.autorId)) return false;
+    return true;
+  });
+
+  const posts = abaAtiva === 'parati' ? postsParaTi : postsExplorarFiltrados;
 
   function renderPost({ item }: { item: Post }) {
     return (
@@ -111,6 +145,7 @@ export default function FeedScreen() {
   return (
     <ScreenContainer>
       <SafeAreaView style={styles.safeArea} edges={['top']}>
+        {/* Header */}
         {isDesktop ? (
           <View style={styles.header}>
             <View style={styles.headerSpacer} />
@@ -137,19 +172,67 @@ export default function FeedScreen() {
           </View>
         )}
 
+        {/* Abas internas */}
+        <View style={styles.innerTabs}>
+          <TouchableOpacity
+            style={[styles.innerTab, abaAtiva === 'parati' && styles.innerTabActive]}
+            onPress={() => setAbaAtiva('parati')}
+            activeOpacity={0.7}
+          >
+            <Text
+              style={[
+                styles.innerTabText,
+                abaAtiva === 'parati' && styles.innerTabTextActive,
+              ]}
+            >
+              Para ti
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.innerTab,
+              abaAtiva === 'explorar' && styles.innerTabActive,
+            ]}
+            onPress={() => setAbaAtiva('explorar')}
+            activeOpacity={0.7}
+          >
+            <Text
+              style={[
+                styles.innerTabText,
+                abaAtiva === 'explorar' && styles.innerTabTextActive,
+              ]}
+            >
+              Explorar
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Conteúdo */}
         {posts.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Ionicons name="newspaper-outline" size={64} color="#ccc" />
-            <Text style={styles.emptyTitle}>Ainda não há publicações</Text>
-            <Text style={styles.emptySubtitle}>
-              Sê o primeiro a publicar algo!
+            <Text style={styles.emptyTitle}>
+              {abaAtiva === 'parati'
+                ? postsParaTi.length === 0 && seguidosIds.length === 0
+                  ? 'Ainda não segues ninguém'
+                  : 'Sem publicações'
+                : 'Tudo visto por aqui'}
             </Text>
-            <TouchableOpacity
-              style={styles.emptyButton}
-              onPress={() => router.push('/(tabs)/create-post')}
-            >
-              <Text style={styles.emptyButtonText}>Criar publicação</Text>
-            </TouchableOpacity>
+            <Text style={styles.emptySubtitle}>
+              {abaAtiva === 'parati'
+                ? seguidosIds.length === 0
+                  ? 'Descobre pessoas em "Explorar" e começa a seguir.'
+                  : 'As pessoas que segues ainda não publicaram nada.'
+                : 'Já viste todas as publicações da comunidade.'}
+            </Text>
+            {abaAtiva === 'parati' && seguidosIds.length === 0 && (
+              <TouchableOpacity
+                style={styles.emptyButton}
+                onPress={() => setAbaAtiva('explorar')}
+              >
+                <Text style={styles.emptyButtonText}>Ir para Explorar</Text>
+              </TouchableOpacity>
+            )}
           </View>
         ) : (
           <FlatList
@@ -301,7 +384,6 @@ function CommentButton({
     </TouchableOpacity>
   );
 }
-
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -337,6 +419,34 @@ const styles = StyleSheet.create({
     color: '#1a1a1a',
     textAlign: 'center',
   },
+
+  // ============ ABAS INTERNAS ============
+  innerTabs: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  innerTab: {
+    flex: 1,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  innerTabActive: {
+    borderBottomColor: '#007AFF',
+  },
+  innerTabText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#888',
+  },
+  innerTabTextActive: {
+    color: '#007AFF',
+  },
+
+  // ============ LISTA ============
   listContent: {
     padding: 8,
     paddingBottom: 24,
@@ -450,6 +560,8 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#666',
   },
+
+  // ============ ESTADO VAZIO ============
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -461,12 +573,14 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#333',
     marginTop: 16,
+    textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: 14,
     color: '#666',
     marginTop: 8,
     textAlign: 'center',
+    maxWidth: 300,
   },
   emptyButton: {
     backgroundColor: '#007AFF',

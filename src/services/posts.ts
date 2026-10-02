@@ -61,7 +61,8 @@ export async function criarPost(
 }
 
 /**
- * Escuta TODAS as publicações em tempo real
+ * Escuta TODAS as publicações (para Explorar)
+ * Filtragem adicional feita no cliente
  */
 export function escutarPosts(callback: (posts: Post[]) => void): () => void {
   const postsRef = collection(db, 'posts');
@@ -85,6 +86,88 @@ export function escutarPosts(callback: (posts: Post[]) => void): () => void {
       console.error('Erro ao escutar posts:', error);
     }
   );
+}
+
+/**
+ * Escuta o feed personalizado (Para ti)
+ * = SÓ posts de quem eu sigo (NÃO inclui os meus próprios)
+ */
+export function escutarFeedPersonalizado(
+  userId: string,
+  callback: (posts: Post[]) => void
+): () => void {
+  const followsRef = collection(db, 'follows');
+  const qFollows = query(followsRef, where('followerId', '==', userId));
+
+  let unsubscribePosts: (() => void) | null = null;
+
+  const unsubscribeFollows = onSnapshot(qFollows, (snapFollows) => {
+    // IDs de quem eu sigo
+    const seguidos = snapFollows.docs.map((d) => d.data().followedId as string);
+
+    // Cancela listener anterior
+    if (unsubscribePosts) {
+      unsubscribePosts();
+      unsubscribePosts = null;
+    }
+
+    // Se não sigo ninguém → devolve vazio
+    if (seguidos.length === 0) {
+      callback([]);
+      return;
+    }
+
+    // Firestore `in` aceita até 30 valores
+    const idsLimitados = seguidos.slice(0, 30);
+
+    const postsRef = collection(db, 'posts');
+    const qPosts = query(
+      postsRef,
+      where('autorId', 'in', idsLimitados),
+      orderBy('criadoEm', 'desc')
+    );
+
+    unsubscribePosts = onSnapshot(
+      qPosts,
+      (snapshot) => {
+        const lista: Post[] = snapshot.docs.map((d) => {
+          const data = d.data();
+          return {
+            id: d.id,
+            ...data,
+            imagens: data.imagens || [],
+            curtidas: data.curtidas || [],
+          } as Post;
+        });
+        callback(lista);
+      },
+      (error) => {
+        console.error('Erro no feed personalizado:', error);
+        callback([]);
+      }
+    );
+  });
+
+  return () => {
+    unsubscribeFollows();
+    if (unsubscribePosts) unsubscribePosts();
+  };
+}
+
+/**
+ * Escuta os IDs das pessoas que eu sigo (para filtrar Explorar)
+ */
+export function escutarSeguidos(
+  userId: string,
+  callback: (seguidosIds: string[]) => void
+): () => void {
+  const followsRef = collection(db, 'follows');
+  const q = query(followsRef, where('followerId', '==', userId));
+
+  return onSnapshot(q, (snap) => {
+    const ids = snap.docs.map((d) => d.data().followedId as string);
+    callback(ids);
+  });
 }
 
 /**
