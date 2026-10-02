@@ -220,3 +220,72 @@ export async function apagarDenuncia(reportId: string): Promise<void> {
   const { doc, deleteDoc } = await import('firebase/firestore');
   await deleteDoc(doc(db, 'reports', reportId));
 }
+// ============================================================
+// UTILIZADORES
+// ============================================================
+
+export type FiltroUtilizadores =
+  | 'todos'
+  | 'aluno'
+  | 'professor'
+  | 'admin'
+  | 'banido';
+
+export interface UtilizadorAdmin {
+  uid: string;
+  email: string;
+  nome: string;
+  fotoURL: string;
+  role: 'aluno' | 'professor' | 'admin';
+  banido: boolean;
+  criadoEm: any;
+}
+
+/**
+ * Escuta a lista de utilizadores com filtro.
+ */
+export function escutarUtilizadores(
+  filtro: FiltroUtilizadores,
+  callback: (users: UtilizadorAdmin[]) => void
+): () => void {
+  const usersRef = collection(db, 'users');
+
+  let q;
+  if (filtro === 'todos') {
+    q = query(usersRef, orderBy('criadoEm', 'desc'));
+  } else if (filtro === 'banido') {
+    q = query(
+      usersRef,
+      where('banido', '==', true),
+      orderBy('criadoEm', 'desc')
+    );
+  } else {
+    q = query(
+      usersRef,
+      where('role', '==', filtro),
+      orderBy('criadoEm', 'desc')
+    );
+  }
+
+  return onSnapshot(
+    q,
+    (snap) => {
+      const lista: UtilizadorAdmin[] = snap.docs.map((d) => {
+        const data = d.data();
+        return {
+          uid: d.id,
+          email: data.email || '',
+          nome: data.nome || '',
+          fotoURL: data.fotoURL || '',
+          role: data.role || 'aluno',
+          banido: data.banido || false,
+          criadoEm: data.criadoEm,
+        };
+      });
+      callback(lista);
+    },
+    (error) => {
+      console.error('Erro ao escutar utilizadores:', error);
+    }
+  );
+}

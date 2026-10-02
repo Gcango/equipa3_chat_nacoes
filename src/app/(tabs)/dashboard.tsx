@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Platform,
   ScrollView,
   StyleSheet,
@@ -12,16 +13,22 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { BanirModal } from '../../components/BanirModal';
+import { PromoteModal } from '../../components/PromoteModal';
 import { ScreenContainer } from '../../components/ScreenContainer';
 import {
   atualizarEstadoDenuncia,
+  banirUtilizador,
   DenunciasPorMotivo,
   escutarDenuncias,
   escutarDenunciasPorMotivo,
   escutarEstatisticas,
+  escutarUtilizadores,
   Estatisticas,
+  FiltroUtilizadores,
   removerConteudo,
   Report,
+  UtilizadorAdmin,
 } from '../../services/admin';
 import { auth } from '../../services/firebase';
 import { getUserProfile } from '../../services/users';
@@ -30,7 +37,7 @@ type Aba = 'visao' | 'denuncias' | 'utilizadores';
 type FiltroDenuncias = 'pendente' | 'resolvido' | 'ignorado' | 'todas';
 
 // ============================================================
-// CORES (paleta sóbria)
+// CORES
 // ============================================================
 const COR = {
   fundo: '#F7F8FA',
@@ -43,7 +50,6 @@ const COR = {
 
   acento: '#2563EB',
   acentoClaro: '#EFF6FF',
-  acentoEscuro: '#1E40AF',
 
   perigo: '#DC2626',
   perigoClaro: '#FEF2F2',
@@ -51,6 +57,8 @@ const COR = {
   sucessoClaro: '#ECFDF5',
   aviso: '#D97706',
   avisoClaro: '#FFFBEB',
+  roxo: '#7C3AED',
+  roxoClaro: '#F5F3FF',
   neutro: '#6B7280',
   neutroClaro: '#F3F4F6',
 };
@@ -78,6 +86,18 @@ const MOTIVOS_LABEL: Record<keyof DenunciasPorMotivo, string> = {
   conteudo_inapropriado: 'Conteúdo inapropriado',
   violencia: 'Violência',
   outro: 'Outro',
+};
+
+const ROLE_COR: Record<string, string> = {
+  aluno: '#2563EB',
+  professor: '#059669',
+  admin: '#7C3AED',
+};
+
+const ROLE_LABEL: Record<string, string> = {
+  aluno: 'ALUNO',
+  professor: 'PROFESSOR',
+  admin: 'ADMIN',
 };
 
 function formatarTempo(valor: any): string {
@@ -108,10 +128,21 @@ export default function DashboardScreen() {
   const [autorizado, setAutorizado] = useState(false);
   const [abaAtiva, setAbaAtiva] = useState<Aba>('visao');
 
+  // Estatísticas + motivos
   const [stats, setStats] = useState<Estatisticas>(VAZIO);
   const [motivos, setMotivos] = useState<DenunciasPorMotivo>(MOTIVOS_VAZIO);
+
+  // Denúncias
   const [filtro, setFiltro] = useState<FiltroDenuncias>('pendente');
   const [denuncias, setDenuncias] = useState<Report[]>([]);
+
+  // Utilizadores
+  const [filtroUsers, setFiltroUsers] = useState<FiltroUtilizadores>('todos');
+  const [utilizadores, setUtilizadores] = useState<UtilizadorAdmin[]>([]);
+
+  // Modais
+  const [promoverUser, setPromoverUser] = useState<UtilizadorAdmin | null>(null);
+  const [banirUser, setBanirUser] = useState<UtilizadorAdmin | null>(null);
 
   useEffect(() => {
     verificarAcesso();
@@ -148,6 +179,12 @@ export default function DashboardScreen() {
     return () => unsub();
   }, [autorizado, filtro]);
 
+  useEffect(() => {
+    if (!autorizado) return;
+    const unsub = escutarUtilizadores(filtroUsers, setUtilizadores);
+    return () => unsub();
+  }, [autorizado, filtroUsers]);
+
   if (loading) {
     return (
       <ScreenContainer>
@@ -160,9 +197,10 @@ export default function DashboardScreen() {
 
   if (!autorizado) return null;
 
+  const meuUid = auth.currentUser?.uid;
   const maxMotivo = Math.max(1, ...Object.values(motivos));
 
-  // ============ AÇÕES ============
+  // ============ AÇÕES DENÚNCIAS ============
   async function handleIgnorar(r: Report) {
     const executar = async () => {
       try {
@@ -222,10 +260,31 @@ export default function DashboardScreen() {
     }
   }
 
+  // ============ AÇÕES UTILIZADORES ============
+  async function handleDesbanir(u: UtilizadorAdmin) {
+    const executar = async () => {
+      try {
+        await banirUtilizador(u.uid, false);
+      } catch (e) {
+        console.error(e);
+        if (Platform.OS === 'web') window.alert('Erro ao desbanir.');
+        else Alert.alert('Erro', 'Não foi possível desbanir.');
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm('Desbanir este utilizador?')) executar();
+    } else {
+      Alert.alert('Desbanir', 'Confirmas?', [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Desbanir', onPress: executar },
+      ]);
+    }
+  }
+
   return (
     <ScreenContainer>
       <SafeAreaView style={styles.container} edges={['top']}>
-        {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <Text style={styles.headerTitle}>Painel de Administração</Text>
@@ -237,7 +296,6 @@ export default function DashboardScreen() {
           </View>
         </View>
 
-        {/* Abas */}
         <View style={styles.tabs}>
           <TabBtn
             label="Visão geral"
@@ -333,7 +391,6 @@ export default function DashboardScreen() {
           {/* ====== DENÚNCIAS ====== */}
           {abaAtiva === 'denuncias' && (
             <View>
-              {/* Filtros */}
               <View style={styles.filtros}>
                 {(
                   [
@@ -399,7 +456,6 @@ export default function DashboardScreen() {
                       key={r.id}
                       style={[styles.reportCard, { borderLeftColor: corEstado }]}
                     >
-                      {/* Header */}
                       <View style={styles.reportHeader}>
                         <Text style={styles.reportMotivo}>
                           {MOTIVOS_LABEL[
@@ -421,7 +477,6 @@ export default function DashboardScreen() {
                         </View>
                       </View>
 
-                      {/* Meta */}
                       <View style={styles.reportMetaRow}>
                         <Text style={styles.reportMetaLabel}>Denunciado por</Text>
                         <Text style={styles.reportMetaValue}>
@@ -441,7 +496,6 @@ export default function DashboardScreen() {
                         </Text>
                       </View>
 
-                      {/* Conteúdo denunciado */}
                       <View style={styles.bloco}>
                         <Text style={styles.blocoLabel}>
                           CONTEÚDO DENUNCIADO
@@ -451,7 +505,6 @@ export default function DashboardScreen() {
                         </Text>
                       </View>
 
-                      {/* Descrição */}
                       {r.descricao ? (
                         <View style={styles.bloco}>
                           <Text style={styles.blocoLabel}>
@@ -461,7 +514,6 @@ export default function DashboardScreen() {
                         </View>
                       ) : null}
 
-                      {/* Ações */}
                       {r.estado === 'pendente' && (
                         <View style={styles.reportActions}>
                           <TouchableOpacity
@@ -475,10 +527,7 @@ export default function DashboardScreen() {
                               color={COR.acento}
                             />
                             <Text
-                              style={[
-                                styles.actionText,
-                                { color: COR.acento },
-                              ]}
+                              style={[styles.actionText, { color: COR.acento }]}
                             >
                               Ver
                             </Text>
@@ -529,21 +578,243 @@ export default function DashboardScreen() {
 
           {/* ====== UTILIZADORES ====== */}
           {abaAtiva === 'utilizadores' && (
-            <View style={styles.placeholder}>
-              <View style={styles.emptyIconCircle}>
-                <Ionicons
-                  name="people-outline"
-                  size={36}
-                  color={COR.textoClaro}
-                />
+            <View>
+              {/* Filtros */}
+              <View style={styles.filtros}>
+                {(
+                  [
+                    { v: 'todos', label: 'Todos' },
+                    { v: 'aluno', label: 'Alunos' },
+                    { v: 'professor', label: 'Professores' },
+                    { v: 'admin', label: 'Admins' },
+                    { v: 'banido', label: 'Banidos' },
+                  ] as { v: FiltroUtilizadores; label: string }[]
+                ).map((f) => (
+                  <TouchableOpacity
+                    key={f.v}
+                    style={[
+                      styles.filtroBtn,
+                      filtroUsers === f.v && styles.filtroBtnActive,
+                    ]}
+                    onPress={() => setFiltroUsers(f.v)}
+                    activeOpacity={0.7}
+                  >
+                    <Text
+                      style={[
+                        styles.filtroText,
+                        filtroUsers === f.v && styles.filtroTextActive,
+                      ]}
+                    >
+                      {f.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
               </View>
-              <Text style={styles.emptyTitle}>Utilizadores</Text>
-              <Text style={styles.emptySub}>
-                Esta secção será implementada na próxima fase.
-              </Text>
+
+              {utilizadores.length === 0 ? (
+                <View style={styles.emptyContainer}>
+                  <View style={styles.emptyIconCircle}>
+                    <Ionicons
+                      name="people-outline"
+                      size={36}
+                      color={COR.textoClaro}
+                    />
+                  </View>
+                  <Text style={styles.emptyTitle}>Sem utilizadores</Text>
+                  <Text style={styles.emptySub}>
+                    Nenhum utilizador nesta categoria.
+                  </Text>
+                </View>
+              ) : (
+                utilizadores.map((u) => {
+                  const souEu = u.uid === meuUid;
+                  const roleCor = ROLE_COR[u.role] || COR.neutro;
+                  const roleLabel = ROLE_LABEL[u.role] || u.role;
+                  const nomeExibir = u.nome || u.email.split('@')[0];
+
+                  return (
+                    <View
+                      key={u.uid}
+                      style={[
+                        styles.userCard,
+                        u.banido && { borderLeftColor: COR.perigo },
+                        !u.banido && { borderLeftColor: roleCor },
+                      ]}
+                    >
+                      {/* Header do user */}
+                      <View style={styles.userHeader}>
+                        {u.fotoURL ? (
+                          <Image
+                            source={{ uri: u.fotoURL }}
+                            style={styles.userAvatar}
+                          />
+                        ) : (
+                          <View
+                            style={[
+                              styles.userAvatar,
+                              styles.userAvatarFallback,
+                              { backgroundColor: roleCor },
+                            ]}
+                          >
+                            <Text style={styles.userAvatarText}>
+                              {nomeExibir.charAt(0).toUpperCase()}
+                            </Text>
+                          </View>
+                        )}
+
+                        <View style={styles.userInfo}>
+                          <View style={styles.userNameRow}>
+                            <Text style={styles.userName} numberOfLines={1}>
+                              {nomeExibir}
+                            </Text>
+                            {souEu && (
+                              <View style={styles.souEuBadge}>
+                                <Text style={styles.souEuText}>VOCÊ</Text>
+                              </View>
+                            )}
+                          </View>
+                          <Text style={styles.userEmail} numberOfLines={1}>
+                            {u.email}
+                          </Text>
+                        </View>
+
+                        <View
+                          style={[
+                            styles.roleBadge,
+                            u.banido
+                              ? {
+                                  backgroundColor: COR.perigoClaro,
+                                  borderColor: COR.perigo + '40',
+                                }
+                              : {
+                                  backgroundColor: roleCor + '15',
+                                  borderColor: roleCor + '40',
+                                },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.roleBadgeText,
+                              { color: u.banido ? COR.perigo : roleCor },
+                            ]}
+                          >
+                            {u.banido ? 'BANIDO' : roleLabel}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* Meta */}
+                      <View style={styles.userMeta}>
+                        <Text style={styles.userMetaText}>
+                          Registado {formatarTempo(u.criadoEm)}
+                        </Text>
+                      </View>
+
+                      {/* Ações (só se não for eu) */}
+                      {!souEu && (
+                        <View style={styles.userActions}>
+                          {!u.banido && (
+                            <TouchableOpacity
+                              style={[styles.userBtn, styles.userBtnPromover]}
+                              onPress={() => setPromoverUser(u)}
+                              activeOpacity={0.7}
+                            >
+                              <Ionicons
+                                name="shield-outline"
+                                size={16}
+                                color={COR.acento}
+                              />
+                              <Text
+                                style={[
+                                  styles.userBtnText,
+                                  { color: COR.acento },
+                                ]}
+                              >
+                                Promover
+                              </Text>
+                            </TouchableOpacity>
+                          )}
+
+                          {u.banido ? (
+                            <TouchableOpacity
+                              style={[styles.userBtn, styles.userBtnDesbanir]}
+                              onPress={() => handleDesbanir(u)}
+                              activeOpacity={0.7}
+                            >
+                              <Ionicons
+                                name="checkmark-outline"
+                                size={16}
+                                color={COR.sucesso}
+                              />
+                              <Text
+                                style={[
+                                  styles.userBtnText,
+                                  { color: COR.sucesso },
+                                ]}
+                              >
+                                Desbanir
+                              </Text>
+                            </TouchableOpacity>
+                          ) : (
+                            <TouchableOpacity
+                              style={[styles.userBtn, styles.userBtnBanir]}
+                              onPress={() => setBanirUser(u)}
+                              activeOpacity={0.7}
+                            >
+                              <Ionicons
+                                name="ban-outline"
+                                size={16}
+                                color={COR.perigo}
+                              />
+                              <Text
+                                style={[
+                                  styles.userBtnText,
+                                  { color: COR.perigo },
+                                ]}
+                              >
+                                Banir
+                              </Text>
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                      )}
+                    </View>
+                  );
+                })
+              )}
             </View>
           )}
         </ScrollView>
+
+        {/* Modais */}
+        <PromoteModal
+          visivel={!!promoverUser}
+          fechar={() => setPromoverUser(null)}
+          user={
+            promoverUser
+              ? {
+                  uid: promoverUser.uid,
+                  nome: promoverUser.nome,
+                  email: promoverUser.email,
+                  role: promoverUser.role,
+                }
+              : null
+          }
+        />
+
+        <BanirModal
+          visivel={!!banirUser}
+          fechar={() => setBanirUser(null)}
+          user={
+            banirUser
+              ? {
+                  uid: banirUser.uid,
+                  nome: banirUser.nome,
+                  email: banirUser.email,
+                }
+              : null
+          }
+        />
       </SafeAreaView>
     </ScreenContainer>
   );
@@ -1003,6 +1274,131 @@ const styles = StyleSheet.create({
   actionText: {
     fontSize: 13,
     fontWeight: '700',
+  },
+
+  // ============ CARDS DE UTILIZADOR ============
+  userCard: {
+    backgroundColor: COR.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COR.borda,
+    borderLeftWidth: 4,
+    padding: 18,
+    marginBottom: 10,
+    gap: 12,
+    ...(Platform.OS === 'web'
+      ? { boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }
+      : {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.04,
+          shadowRadius: 3,
+          elevation: 1,
+        }),
+  },
+  userHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  userAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: COR.divisoria,
+  },
+  userAvatarFallback: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  userAvatarText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  userInfo: {
+    flex: 1,
+    gap: 3,
+  },
+  userNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  userName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: COR.textoPrincipal,
+    flexShrink: 1,
+  },
+  souEuBadge: {
+    backgroundColor: COR.acentoClaro,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: COR.acento + '30',
+  },
+  souEuText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: COR.acento,
+    letterSpacing: 0.5,
+  },
+  userEmail: {
+    fontSize: 12,
+    color: COR.textoMedio,
+  },
+  roleBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  roleBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  userMeta: {
+    paddingTop: 4,
+  },
+  userMetaText: {
+    fontSize: 12,
+    color: COR.textoClaro,
+  },
+  userActions: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: COR.divisoria,
+  },
+  userBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  userBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  userBtnPromover: {
+    backgroundColor: COR.acentoClaro,
+    borderColor: COR.acento + '30',
+  },
+  userBtnBanir: {
+    backgroundColor: COR.perigoClaro,
+    borderColor: COR.perigo + '30',
+  },
+  userBtnDesbanir: {
+    backgroundColor: COR.sucessoClaro,
+    borderColor: COR.sucesso + '30',
   },
 
   // ============ PLACEHOLDER ============
