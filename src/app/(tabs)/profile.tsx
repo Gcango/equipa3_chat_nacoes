@@ -120,7 +120,6 @@ export default function ProfileScreen() {
     <ScreenContainer>
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <ScrollView contentContainerStyle={styles.scrollContent}>
-          {/* Header */}
           <View style={styles.header}>
             <Text style={styles.headerTitle}>{nomeExibir}</Text>
             <TouchableOpacity
@@ -130,7 +129,6 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Avatar + Contadores */}
           <View style={styles.topRow}>
             <View style={styles.avatarWrapper}>
               {profile.fotoURL ? (
@@ -153,7 +151,7 @@ export default function ProfileScreen() {
                 style={styles.statItem}
                 onPress={() =>
                   router.push(
-                    `/(tabs)/follows/${profile.uid}?tipo=seguidores` as any
+                    `/follows/${profile.uid}?tipo=seguidores` as any
                   )
                 }
               >
@@ -164,7 +162,7 @@ export default function ProfileScreen() {
                 style={styles.statItem}
                 onPress={() =>
                   router.push(
-                    `/(tabs)/follows/${profile.uid}?tipo=aSeguir` as any
+                    `/follows/${profile.uid}?tipo=aSeguir` as any
                   )
                 }
               >
@@ -174,7 +172,6 @@ export default function ProfileScreen() {
             </View>
           </View>
 
-          {/* Nome + Bio */}
           <View style={styles.bio}>
             <Text style={styles.nome}>{nomeExibir}</Text>
             <View style={[styles.roleBadge, { backgroundColor: roleCor + '20' }]}>
@@ -187,7 +184,6 @@ export default function ProfileScreen() {
             ) : null}
           </View>
 
-          {/* Botão Editar perfil */}
           <TouchableOpacity
             style={styles.editButton}
             onPress={() => router.push('/(tabs)/edit-profile' as any)}
@@ -195,7 +191,6 @@ export default function ProfileScreen() {
             <Text style={styles.editButtonText}>Editar perfil</Text>
           </TouchableOpacity>
 
-          {/* Botão Painel de Administração (só admins e só mobile) */}
           {profile.role === 'admin' && !isDesktop && (
             <TouchableOpacity
               style={styles.adminButton}
@@ -208,7 +203,6 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           )}
 
-          {/* Abas */}
           <View style={styles.tabs}>
             <TouchableOpacity
               style={[styles.tab, abaAtiva === 'posts' && styles.tabActive]}
@@ -232,7 +226,6 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Conteúdo */}
           {abaAtiva === 'posts' ? (
             <PostGrid userId={profile.uid} />
           ) : (

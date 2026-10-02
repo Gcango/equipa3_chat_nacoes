@@ -61,7 +61,7 @@ export default function FeedScreen() {
       <View style={styles.postCard}>
         <TouchableOpacity
           style={styles.postHeader}
-          onPress={() => router.push(`/(tabs)/user/${item.autorId}` as any)}
+          onPress={() => router.push(`/user/${item.autorId}` as any)}
           activeOpacity={0.7}
         >
           {item.autorFotoURL ? (
@@ -111,26 +111,19 @@ export default function FeedScreen() {
   return (
     <ScreenContainer>
       <SafeAreaView style={styles.safeArea} edges={['top']}>
-        {/* Header — diferente por dispositivo */}
         {isDesktop ? (
-          // PC: só o título centrado
           <View style={styles.header}>
             <View style={styles.headerSpacer} />
             <Text style={styles.headerTitle}>Chat Nações</Text>
             <View style={styles.headerSpacer} />
           </View>
         ) : (
-          // Mobile: [+] Chat Nações [🔔]
           <View style={styles.header}>
             <TouchableOpacity
               style={styles.headerBtn}
               onPress={() => router.push('/(tabs)/create-post')}
             >
-              <Ionicons
-                name="add-circle-outline"
-                size={28}
-                color="#1a1a1a"
-              />
+              <Ionicons name="add-circle-outline" size={28} color="#1a1a1a" />
             </TouchableOpacity>
 
             <Text style={styles.headerTitle}>Chat Nações</Text>
@@ -139,11 +132,7 @@ export default function FeedScreen() {
               style={styles.headerBtn}
               onPress={() => router.push('/(tabs)/notifications')}
             >
-              <Ionicons
-                name="notifications-outline"
-                size={26}
-                color="#1a1a1a"
-              />
+              <Ionicons name="notifications-outline" size={26} color="#1a1a1a" />
             </TouchableOpacity>
           </View>
         )}
@@ -304,9 +293,7 @@ function CommentButton({
     <TouchableOpacity
       style={styles.postAction}
       onPress={() =>
-        router.push(
-          `/comments/${postId}?postAutorId=${postAutorId}` as any
-        )
+        router.push(`/comments/${postId}?postAutorId=${postAutorId}` as any)
       }
     >
       <Ionicons name="chatbubble-outline" size={20} color="#666" />

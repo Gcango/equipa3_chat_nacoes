@@ -11,11 +11,11 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { FollowButton } from '../../../components/FollowButton';
-import { PostGrid } from '../../../components/PostGrid';
-import { escutarContadores } from '../../../services/follows';
-import { escutarContagemPosts } from '../../../services/posts';
-import { getUserProfile, UserProfile } from '../../../services/users';
+import { FollowButton } from '../../components/FollowButton';
+import { PostGrid } from '../../components/PostGrid';
+import { escutarContadores } from '../../services/follows';
+import { escutarContagemPosts } from '../../services/posts';
+import { getUserProfile, UserProfile } from '../../services/users';
 
 const ROLE_CORES: Record<string, string> = {
   aluno: '#007AFF',
@@ -127,7 +127,7 @@ export default function UserProfileScreen() {
               style={styles.statItem}
               onPress={() =>
                 router.push(
-                  `/(tabs)/follows/${profile.uid}?tipo=seguidores` as any
+                  `/follows/${profile.uid}?tipo=seguidores` as any
                 )
               }
             >
@@ -138,7 +138,7 @@ export default function UserProfileScreen() {
               style={styles.statItem}
               onPress={() =>
                 router.push(
-                  `/(tabs)/follows/${profile.uid}?tipo=aSeguir` as any
+                  `/follows/${profile.uid}?tipo=aSeguir` as any
                 )
               }
             >

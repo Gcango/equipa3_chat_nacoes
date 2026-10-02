@@ -21,23 +21,20 @@ export default function TabsLayout() {
             }}
           >
             <Tabs.Screen name="feed" />
-            <Tabs.Screen name="search" />
             <Tabs.Screen name="reels" />
-            <Tabs.Screen name="messages" />
             <Tabs.Screen name="notifications" />
-            <Tabs.Screen name="dashboard" />
             <Tabs.Screen name="profile" />
             <Tabs.Screen name="create-post" options={{ href: null }} />
-            <Tabs.Screen name="user/[userId]" options={{ href: null }} />
-            <Tabs.Screen name="follows/[userId]" options={{ href: null }} />
             <Tabs.Screen name="edit-profile" options={{ href: null }} />
+            <Tabs.Screen name="search" options={{ href: null }} />
+            <Tabs.Screen name="messages" options={{ href: null }} />
+            <Tabs.Screen name="dashboard" options={{ href: null }} />
           </Tabs>
         </View>
       </View>
     );
   }
 
-  // ============ MOBILE ============
   return (
     <Tabs
       screenOptions={{
@@ -99,8 +96,6 @@ export default function TabsLayout() {
       <Tabs.Screen name="notifications" options={{ href: null }} />
       <Tabs.Screen name="dashboard" options={{ href: null }} />
       <Tabs.Screen name="create-post" options={{ href: null }} />
-      <Tabs.Screen name="user/[userId]" options={{ href: null }} />
-      <Tabs.Screen name="follows/[userId]" options={{ href: null }} />
       <Tabs.Screen name="edit-profile" options={{ href: null }} />
     </Tabs>
   );

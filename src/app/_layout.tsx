@@ -8,6 +8,8 @@ export default function RootLayout() {
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="comments/[postId]" />
       <Stack.Screen name="post/[postId]" />
+      <Stack.Screen name="follows/[userId]" />
+      <Stack.Screen name="user/[userId]" />
       <Stack.Screen name="setup-admin" />
     </Stack>
   );
