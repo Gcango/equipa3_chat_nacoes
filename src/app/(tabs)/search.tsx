@@ -128,8 +128,9 @@ export default function SearchScreen() {
 
     const tamanho = (largura - ESPACO * (NUM_COLUNAS - 1)) / NUM_COLUNAS;
 
-    return (
+       return (
       <FlatList
+        key="explorar-grid"
         data={postsExplorarFiltrados}
         keyExtractor={(item) => item.id}
         numColumns={NUM_COLUNAS}
@@ -192,6 +193,7 @@ export default function SearchScreen() {
 
     return (
       <FlatList
+        key="contas-list"
         data={resultados}
         keyExtractor={(item) => item.uid}
         renderItem={({ item, index }) => {
