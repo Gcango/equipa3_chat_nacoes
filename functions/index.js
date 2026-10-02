@@ -17,12 +17,16 @@ exports.beforecreated = functions.auth.user().beforeCreate((user, context) => {
 
 /**
  * 2) CRIAR PERFIL no Firestore quando uma conta é criada
+ * Inclui o campo 'username' (parte antes do @)
  */
 exports.onUserCreated = functions.auth.user().onCreate(async (user) => {
   try {
+    const username = user.email ? user.email.split('@')[0] : 'user';
+
     await admin.firestore().collection('users').doc(user.uid).set({
       uid: user.uid,
       email: user.email,
+      username: username,
       nome: '',
       bio: '',
       fotoURL: '',
@@ -31,7 +35,7 @@ exports.onUserCreated = functions.auth.user().onCreate(async (user) => {
       emailVerificado: false,
       criadoEm: admin.firestore.FieldValue.serverTimestamp(),
     });
-    console.log(`✅ Perfil criado para ${user.email}`);
+    console.log(`✅ Perfil criado para ${user.email} (username: ${username})`);
   } catch (error) {
     console.error('❌ Erro ao criar perfil:', error);
   }
@@ -237,7 +241,6 @@ exports.banirUtilizador = functions.https.onCall(async (data, context) => {
     );
   }
 
-  // Marcar como banido
   await db.collection('users').doc(targetUid).update({ banido: banir });
 
   console.log(`${banir ? '🚫 Baniu' : '✅ Desbaniu'} ${targetUid}`);
@@ -283,7 +286,6 @@ exports.removerConteudo = functions.https.onCall(async (data, context) => {
 
   try {
     if (tipo === 'post') {
-      // Apagar post + todos os seus comentários
       const postRef = db.collection('posts').doc(alvoId);
       const comentsSnap = await postRef.collection('comentarios').get();
       const batch = db.batch();
@@ -292,7 +294,6 @@ exports.removerConteudo = functions.https.onCall(async (data, context) => {
       await batch.commit();
       console.log(`🗑️ Admin ${callerUid} apagou post ${alvoId}`);
     } else if (tipo === 'comentario') {
-      // Apagar comentário específico
       const comentRef = db
         .collection('posts')
         .doc(postId)
@@ -301,7 +302,6 @@ exports.removerConteudo = functions.https.onCall(async (data, context) => {
       await comentRef.delete();
       console.log(`🗑️ Admin ${callerUid} apagou comentário ${alvoId}`);
     } else if (tipo === 'resposta') {
-      // Apagar resposta específica (array dentro do comentário)
       if (!respostaId) {
         throw new functions.https.HttpsError(
           'invalid-argument',
@@ -344,4 +344,61 @@ exports.removerConteudo = functions.https.onCall(async (data, context) => {
       'Não foi possível remover o conteúdo.'
     );
   }
+});
+
+/**
+ * 7) MIGRAÇÃO ONE-TIME
+ * Adiciona 'username' a utilizadores existentes (criados antes desta mudança).
+ * Só pode ser chamada por um admin.
+ */
+exports.migrarUsernames = functions.https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError(
+      'unauthenticated',
+      'Tens de estar autenticado.'
+    );
+  }
+
+  const callerUid = context.auth.uid;
+  const callerSnap = await admin
+    .firestore()
+    .collection('users')
+    .doc(callerUid)
+    .get();
+
+  if (!callerSnap.exists || callerSnap.data().role !== 'admin') {
+    throw new functions.https.HttpsError(
+      'permission-denied',
+      'Só admins podem correr a migração.'
+    );
+  }
+
+  const usersRef = admin.firestore().collection('users');
+  const snapshot = await usersRef.get();
+
+  let atualizados = 0;
+  let ignorados = 0;
+  const batch = admin.firestore().batch();
+
+  snapshot.docs.forEach((doc) => {
+    const data = doc.data();
+    if (!data.username && data.email) {
+      const username = data.email.split('@')[0];
+      batch.update(doc.ref, { username });
+      atualizados++;
+    } else {
+      ignorados++;
+    }
+  });
+
+  await batch.commit();
+
+  console.log(`🔧 Migração: ${atualizados} atualizados, ${ignorados} ignorados`);
+
+  return {
+    success: true,
+    atualizados,
+    ignorados,
+    total: snapshot.size,
+  };
 });

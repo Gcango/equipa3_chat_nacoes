@@ -1,9 +1,9 @@
 import {
+  collection,
   doc,
   getDoc,
-  serverTimestamp,
-  setDoc,
-  updateDoc,
+  getDocs,
+  updateDoc
 } from 'firebase/firestore';
 import { db } from './firebase';
 
@@ -12,6 +12,7 @@ export type UserRole = 'aluno' | 'professor' | 'admin';
 export interface UserProfile {
   uid: string;
   email: string;
+  username: string;
   nome: string;
   bio: string;
   fotoURL: string;
@@ -22,7 +23,7 @@ export interface UserProfile {
 }
 
 /**
- * Busca o perfil do utilizador no Firestore
+ * Busca o perfil do utilizador
  */
 export async function getUserProfile(uid: string): Promise<UserProfile | null> {
   try {
@@ -34,6 +35,7 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
       return {
         uid,
         email: data.email || '',
+        username: data.username || (data.email ? data.email.split('@')[0] : ''),
         nome: data.nome || '',
         bio: data.bio || '',
         fotoURL: data.fotoURL || '',
@@ -55,7 +57,9 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
  */
 export async function updateUserProfile(
   uid: string,
-  data: Partial<Pick<UserProfile, 'nome' | 'bio' | 'fotoURL' | 'emailVerificado'>>
+  data: Partial<
+    Pick<UserProfile, 'nome' | 'bio' | 'fotoURL' | 'emailVerificado'>
+  >
 ): Promise<void> {
   try {
     const docRef = doc(db, 'users', uid);
@@ -75,5 +79,58 @@ export async function marcarEmailVerificado(uid: string): Promise<void> {
     await updateDoc(docRef, { emailVerificado: true });
   } catch (error) {
     console.error('Erro ao marcar email como verificado:', error);
+  }
+}
+
+/**
+ * Pesquisa utilizadores por nome OU username
+ * (case-insensitive, prefixo — começa por)
+ */
+export async function pesquisarUtilizadores(
+  termo: string
+): Promise<UserProfile[]> {
+  const termoLower = termo.toLowerCase().trim();
+  if (!termoLower) return [];
+
+  try {
+    const usersRef = collection(db, 'users');
+    const todosSnap = await getDocs(usersRef);
+
+    const resultados: UserProfile[] = [];
+
+    todosSnap.docs.forEach((d) => {
+      const data = d.data();
+      const nome = (data.nome || '').toLowerCase();
+      const username = (
+        data.username ||
+        (data.email ? data.email.split('@')[0] : '')
+      ).toLowerCase();
+      const email = (data.email || '').toLowerCase();
+
+      if (
+        nome.includes(termoLower) ||
+        username.includes(termoLower) ||
+        email.includes(termoLower)
+      ) {
+        resultados.push({
+          uid: d.id,
+          email: data.email || '',
+          username: data.username || (data.email ? data.email.split('@')[0] : ''),
+          nome: data.nome || '',
+          bio: data.bio || '',
+          fotoURL: data.fotoURL || '',
+          role: data.role || 'aluno',
+          banido: data.banido || false,
+          emailVerificado: data.emailVerificado || false,
+          criadoEm: data.criadoEm,
+        });
+      }
+    });
+
+    // Exclui users banidos dos resultados
+    return resultados.filter((u) => !u.banido);
+  } catch (error) {
+    console.error('Erro ao pesquisar utilizadores:', error);
+    return [];
   }
 }

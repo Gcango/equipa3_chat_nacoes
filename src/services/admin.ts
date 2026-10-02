@@ -289,3 +289,20 @@ export function escutarUtilizadores(
     }
   );
 }
+/**
+ * MIGRAÇÃO ONE-TIME: adiciona 'username' a utilizadores existentes.
+ * Só pode ser chamada por admin. Usar apenas uma vez.
+ */
+export async function migrarUsernames(): Promise<{
+  atualizados: number;
+  ignorados: number;
+  total: number;
+}> {
+  const fn = httpsCallable(functions, 'migrarUsernames');
+  const result = await fn();
+  return result.data as {
+    atualizados: number;
+    ignorados: number;
+    total: number;
+  };
+}
