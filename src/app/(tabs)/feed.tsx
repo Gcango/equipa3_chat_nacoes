@@ -19,6 +19,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ExploreFeed } from '../../components/ExploreFeed';
+import { PostMenu } from '../../components/PostMenu';
 import { ScreenContainer } from '../../components/ScreenContainer';
 import { StoriesBar } from '../../components/StoriesBar';
 import { escutarContagemComentarios } from '../../services/comments';
@@ -49,6 +50,9 @@ export default function FeedScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [naoLidas, setNaoLidas] = useState(0);
 
+  // Estado do menu ⋯
+  const [postMenuAberto, setPostMenuAberto] = useState<Post | null>(null);
+
   useEffect(() => {
     const user = auth.currentUser;
     if (!user) return;
@@ -72,31 +76,50 @@ export default function FeedScreen() {
     setTimeout(() => setRefreshing(false), 800);
   }
 
+  const meuUid = auth.currentUser?.uid;
+
   function renderPost({ item }: { item: Post }) {
+    const souEu = item.autorId === meuUid;
+
     return (
       <View style={styles.postCard}>
-        <TouchableOpacity
-          style={styles.postHeader}
-          onPress={() => router.push(`/user/${item.autorId}` as any)}
-          activeOpacity={0.7}
-        >
-          {item.autorFotoURL ? (
-            <Image source={{ uri: item.autorFotoURL }} style={styles.avatar} />
-          ) : (
-            <View style={[styles.avatar, styles.avatarFallback]}>
-              <Text style={styles.avatarFallbackText}>
-                {item.autorNome.charAt(0).toUpperCase()}
+        <View style={styles.postHeader}>
+          <TouchableOpacity
+            style={styles.postHeaderLeft}
+            onPress={() => router.push(`/user/${item.autorId}` as any)}
+            activeOpacity={0.7}
+          >
+            {item.autorFotoURL ? (
+              <Image source={{ uri: item.autorFotoURL }} style={styles.avatar} />
+            ) : (
+              <View style={[styles.avatar, styles.avatarFallback]}>
+                <Text style={styles.avatarFallbackText}>
+                  {item.autorNome.charAt(0).toUpperCase()}
+                </Text>
+              </View>
+            )}
+
+            <View style={styles.postHeaderInfo}>
+              <Text style={styles.postAuthorNome}>{item.autorNome}</Text>
+              <Text style={styles.postMeta}>
+                {item.autorRole} · {formatarTempoRelativo(item.criadoEm)}
               </Text>
             </View>
-          )}
+          </TouchableOpacity>
 
-          <View style={styles.postHeaderInfo}>
-            <Text style={styles.postAuthorNome}>{item.autorNome}</Text>
-            <Text style={styles.postMeta}>
-              {item.autorRole} · {formatarTempoRelativo(item.criadoEm)}
-            </Text>
-          </View>
-        </TouchableOpacity>
+          {/* Botão ⋯ (3 pontinhos) */}
+          <TouchableOpacity
+            style={styles.moreBtn}
+            onPress={() => setPostMenuAberto(item)}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name="ellipsis-horizontal"
+              size={22}
+              color="#1a1a1a"
+            />
+          </TouchableOpacity>
+        </View>
 
         {item.conteudo ? (
           <Text style={styles.postConteudo}>{item.conteudo}</Text>
@@ -166,10 +189,8 @@ export default function FeedScreen() {
           </View>
         )}
 
-        {/* Barra de Stories */}
         <StoriesBar />
 
-        {/* Abas internas */}
         <View style={styles.innerTabs}>
           <TouchableOpacity
             style={[
@@ -207,7 +228,6 @@ export default function FeedScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Conteúdo */}
         {abaAtiva === 'explorar' ? (
           <ExploreFeed />
         ) : postsParaTi.length === 0 ? (
@@ -235,6 +255,16 @@ export default function FeedScreen() {
             }
           />
         )}
+
+        {/* Menu ⋯ */}
+        <PostMenu
+          visivel={!!postMenuAberto}
+          fechar={() => setPostMenuAberto(null)}
+          tipo="post"
+          conteudoId={postMenuAberto?.id || ''}
+          autorId={postMenuAberto?.autorId || ''}
+          autorNome={postMenuAberto?.autorNome}
+        />
       </SafeAreaView>
     </ScreenContainer>
   );
@@ -373,10 +403,7 @@ function CommentButton({
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
+  safeArea: { flex: 1, backgroundColor: '#fff' },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -392,14 +419,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
   },
-  headerBtn: {
-    padding: 4,
-    width: 36,
-    alignItems: 'center',
-  },
-  headerSpacer: {
-    width: 36,
-  },
+  headerBtn: { padding: 4, width: 36, alignItems: 'center' },
+  headerSpacer: { width: 36 },
   headerTitle: {
     flex: 1,
     fontSize: 22,
@@ -407,9 +428,7 @@ const styles = StyleSheet.create({
     color: '#1a1a1a',
     textAlign: 'center',
   },
-  bellWrapper: {
-    position: 'relative',
-  },
+  bellWrapper: { position: 'relative' },
   badge: {
     position: 'absolute',
     top: -4,
@@ -424,11 +443,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#fff',
   },
-  badgeText: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: '700',
-  },
+  badgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
   innerTabs: {
     flexDirection: 'row',
     backgroundColor: '#fff',
@@ -442,21 +457,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
   },
-  innerTabActive: {
-    borderBottomColor: '#007AFF',
-  },
-  innerTabText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#888',
-  },
-  innerTabTextActive: {
-    color: '#007AFF',
-  },
-  listContent: {
-    padding: 8,
-    paddingBottom: 24,
-  },
+  innerTabActive: { borderBottomColor: '#007AFF' },
+  innerTabText: { fontSize: 14, fontWeight: '600', color: '#888' },
+  innerTabTextActive: { color: '#007AFF' },
+  listContent: { padding: 8, paddingBottom: 24 },
   postCard: {
     backgroundColor: '#fff',
     borderRadius: 12,
@@ -468,6 +472,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
+  postHeaderLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  moreBtn: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   avatar: {
     width: 44,
     height: 44,
@@ -478,20 +493,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  avatarFallbackText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  postHeaderInfo: {
-    marginLeft: 12,
-    flex: 1,
-  },
-  postAuthorNome: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#1a1a1a',
-  },
+  avatarFallbackText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
+  postHeaderInfo: { marginLeft: 12, flex: 1 },
+  postAuthorNome: { fontSize: 15, fontWeight: '600', color: '#1a1a1a' },
   postMeta: {
     fontSize: 12,
     color: '#666',
@@ -511,10 +515,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     backgroundColor: '#f0f0f0',
   },
-  carouselContainer: {
-    position: 'relative',
-    marginBottom: 12,
-  },
+  carouselContainer: { position: 'relative', marginBottom: 12 },
   imagemCarousel: {
     width: IMAGE_WIDTH,
     height: 280,
@@ -533,9 +534,7 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     backgroundColor: '#ccc',
   },
-  indicatorActive: {
-    backgroundColor: '#007AFF',
-  },
+  indicatorActive: { backgroundColor: '#007AFF' },
   imageCounter: {
     position: 'absolute',
     top: 12,
@@ -545,11 +544,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 12,
   },
-  imageCounterText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
+  imageCounterText: { color: '#fff', fontSize: 12, fontWeight: '600' },
   postFooter: {
     flexDirection: 'row',
     gap: 20,
@@ -562,10 +557,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
   },
-  postActionText: {
-    fontSize: 13,
-    color: '#666',
-  },
+  postActionText: { fontSize: 13, color: '#666' },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -593,9 +585,5 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginTop: 24,
   },
-  emptyButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 15,
-  },
+  emptyButtonText: { color: '#fff', fontWeight: '600', fontSize: 15 },
 });

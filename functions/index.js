@@ -402,3 +402,167 @@ exports.migrarUsernames = functions.https.onCall(async (data, context) => {
     total: snapshot.size,
   };
 });
+/**
+ * 8) APAGAR CONTEÚDO (post ou reel)
+ * Apaga de forma atómica:
+ *   - Notificações relacionadas
+ *   - Comentários (subcoleção)
+ *   - Documento principal (posts/{id} ou reels/{id})
+ *   - Ficheiros do Storage (imagens, vídeo, thumbnail)
+ * 
+ * Só o autor pode apagar.
+ */
+exports.apagarConteudo = functions.https.onCall(async (data, context) => {
+  // 1. Verificar autenticação
+  if (!context.auth) {
+    throw new functions.https.HttpsError(
+      'unauthenticated',
+      'Tens de estar autenticado.'
+    );
+  }
+
+  const callerUid = context.auth.uid;
+  const { tipo, conteudoId } = data;
+
+  // 2. Validar parâmetros
+  if (!tipo || !conteudoId) {
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      'tipo e conteudoId são obrigatórios.'
+    );
+  }
+
+  if (tipo !== 'post' && tipo !== 'reel') {
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      'tipo deve ser "post" ou "reel".'
+    );
+  }
+
+  const db = admin.firestore();
+  const bucket = admin.storage().bucket();
+
+  // 3. Verificar que o conteúdo existe e que o caller é o autor
+  const colecao = tipo === 'post' ? 'posts' : 'reels';
+  const docRef = db.collection(colecao).doc(conteudoId);
+  const docSnap = await docRef.get();
+
+  if (!docSnap.exists) {
+    throw new functions.https.HttpsError(
+      'not-found',
+      'Conteúdo não encontrado.'
+    );
+  }
+
+  const docData = docSnap.data();
+  if (docData.autorId !== callerUid) {
+    throw new functions.https.HttpsError(
+      'permission-denied',
+      'Só podes apagar o teu próprio conteúdo.'
+    );
+  }
+
+  try {
+    // 4. Apagar notificações relacionadas
+    const notifsSnap = await db
+      .collection('notifications')
+      .where('postId', '==', conteudoId)
+      .get();
+
+    // 5. Se for post, apagar comentários (subcoleção)
+    let comentsSnap = { docs: [] };
+    if (tipo === 'post') {
+      comentsSnap = await docRef.collection('comentarios').get();
+    }
+
+    // 6. Apagar ficheiros do Storage
+    const ficheirosParaApagar = [];
+
+    if (tipo === 'post') {
+      // Apaga todas as imagens do post
+      const imagens = docData.imagens || [];
+      imagens.forEach((url) => {
+        try {
+          const path = decodeURIComponent(
+            url.split('/o/')[1].split('?')[0]
+          );
+          ficheirosParaApagar.push(path);
+        } catch (e) {
+          console.warn('Erro ao extrair path da imagem:', url);
+        }
+      });
+    } else if (tipo === 'reel') {
+      // Apaga vídeo + thumbnail do reel
+      if (docData.videoURL) {
+        try {
+          const path = decodeURIComponent(
+            docData.videoURL.split('/o/')[1].split('?')[0]
+          );
+          ficheirosParaApagar.push(path);
+        } catch (e) {}
+      }
+      if (docData.thumbURL) {
+        try {
+          const path = decodeURIComponent(
+            docData.thumbURL.split('/o/')[1].split('?')[0]
+          );
+          ficheirosParaApagar.push(path);
+        } catch (e) {}
+      }
+    }
+
+    // 7. Apagar ficheiros do Storage
+    if (ficheirosParaApagar.length > 0) {
+      await Promise.all(
+        ficheirosParaApagar.map(async (path) => {
+          try {
+            await bucket.file(path).delete();
+          } catch (e) {
+            // Ignora se já não existir
+            console.warn(`Ficheiro ${path} não encontrado:`, e.message);
+          }
+        })
+      );
+    }
+
+    // 8. Apagar com batch (atómico para Firestore)
+    // Nota: Firestore batch tem limite de 500 operações
+    // Se houver mais, dividimos em batches
+
+    const todosParaApagar = [
+      ...notifsSnap.docs.map((d) => d.ref),
+      ...comentsSnap.docs.map((d) => d.ref),
+      docRef,
+    ];
+
+    const BATCH_SIZE = 400;
+    for (let i = 0; i < todosParaApagar.length; i += BATCH_SIZE) {
+      const batch = db.batch();
+      const chunk = todosParaApagar.slice(i, i + BATCH_SIZE);
+      chunk.forEach((ref) => batch.delete(ref));
+      await batch.commit();
+    }
+
+    console.log(
+      `🗑️ ${callerUid} apagou ${tipo} ${conteudoId}. ` +
+        `Notificações: ${notifsSnap.size}, Comentários: ${comentsSnap.size}, ` +
+        `Ficheiros: ${ficheirosParaApagar.length}`
+    );
+
+    return {
+      success: true,
+      eliminados: {
+        notificacoes: notifsSnap.size,
+        comentarios: comentsSnap.size,
+        ficheiros: ficheirosParaApagar.length,
+      },
+    };
+  } catch (error) {
+    console.error('Erro ao apagar conteúdo:', error);
+    if (error instanceof functions.https.HttpsError) throw error;
+    throw new functions.https.HttpsError(
+      'internal',
+      'Não foi possível apagar o conteúdo.'
+    );
+  }
+});

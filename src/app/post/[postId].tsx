@@ -19,6 +19,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { PostMenu } from '../../components/PostMenu';
 import { ReportModal } from '../../components/ReportModal';
 import {
   apagarComentario,
@@ -87,6 +88,9 @@ export default function PostDetailScreen() {
     alvoId: string;
     conteudo: string;
   } | null>(null);
+
+  // Menu ⋯
+  const [menuAberto, setMenuAberto] = useState(false);
 
   const scrollRef = useRef<ScrollView>(null);
   const inputRef = useRef<TextInput>(null);
@@ -382,10 +386,7 @@ export default function PostDetailScreen() {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.backBtn}
-          >
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="chevron-back" size={26} color="#1a1a1a" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Publicação</Text>
@@ -401,6 +402,7 @@ export default function PostDetailScreen() {
   const uid = auth.currentUser?.uid;
   const curtiu = uid ? post.curtidas.includes(uid) : false;
   const numLikes = post.curtidas.length;
+  const souEu = uid === post.autorId;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -409,7 +411,13 @@ export default function PostDetailScreen() {
           <Ionicons name="chevron-back" size={26} color="#1a1a1a" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Publicação</Text>
-        <View style={styles.backBtn} />
+        <TouchableOpacity
+          style={styles.backBtn}
+          onPress={() => setMenuAberto(true)}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="ellipsis-horizontal" size={22} color="#1a1a1a" />
+        </TouchableOpacity>
       </View>
 
       <KeyboardAvoidingView
@@ -417,14 +425,11 @@ export default function PostDetailScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView ref={scrollRef} contentContainerStyle={styles.scroll}>
-          {/* Post */}
           <View style={styles.postCard}>
             <View style={styles.postHeader}>
               <TouchableOpacity
                 style={styles.postHeaderLeft}
-                onPress={() =>
-                  router.push(`/(tabs)/user/${post.autorId}` as any)
-                }
+                onPress={() => router.push(`/user/${post.autorId}` as any)}
                 activeOpacity={0.7}
               >
                 {post.autorFotoURL ? (
@@ -445,19 +450,6 @@ export default function PostDetailScreen() {
                     {post.autorRole} · {formatarTempoRelativo(post.criadoEm)}
                   </Text>
                 </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.reportBtn}
-                onPress={() =>
-                  abrirDenuncia(
-                    'post',
-                    post.id,
-                    post.conteudo || '[Publicação com imagens]'
-                  )
-                }
-              >
-                <Ionicons name="flag-outline" size={20} color="#999" />
               </TouchableOpacity>
             </View>
 
@@ -497,7 +489,6 @@ export default function PostDetailScreen() {
             </View>
           </View>
 
-          {/* Comentários */}
           <View style={styles.commentSection}>
             <Text style={styles.sectionTitle}>
               {comentarios.length === 0
@@ -569,6 +560,27 @@ export default function PostDetailScreen() {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+
+      {/* Menu ⋯ */}
+      <PostMenu
+        visivel={menuAberto}
+        fechar={() => setMenuAberto(false)}
+        tipo="post"
+        conteudoId={post.id}
+        autorId={post.autorId}
+        autorNome={post.autorNome}
+        onDenunciar={() =>
+          abrirDenuncia(
+            'post',
+            post.id,
+            post.conteudo || '[Publicação com imagens]'
+          )
+        }
+        onApagado={() => {
+          // Após apagar, volta ao ecrã anterior
+          setTimeout(() => router.back(), 200);
+        }}
+      />
 
       {/* Modal de denúncia */}
       {reportAlvo && (
@@ -676,9 +688,6 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  reportBtn: {
-    padding: 4,
   },
   avatar: {
     width: 44,

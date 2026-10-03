@@ -16,6 +16,8 @@ import {
 import { auth } from '../services/firebase';
 import { addLikeReel, Reel, removeLikeReel } from '../services/reels';
 import { FollowButton } from './FollowButton';
+import { PostMenu } from './PostMenu';
+import { ReportModal } from './ReportModal';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
@@ -37,13 +39,21 @@ interface Props {
   reel: Reel;
   estaVisivel: boolean;
   somAtivo: boolean;
+  /** Callback chamado após o reel ser apagado */
+  onApagado?: () => void;
 }
 
-export function ReelItem({ reel, estaVisivel, somAtivo }: Props) {
+export function ReelItem({ reel, estaVisivel, somAtivo, onApagado }: Props) {
   const router = useRouter();
   const [curtidas, setCurtidas] = useState<string[]>(reel.curtidas || []);
   const [curtindo, setCurtindo] = useState(false);
   const [videoPronto, setVideoPronto] = useState(false);
+
+  // Menu ⋯
+  const [menuAberto, setMenuAberto] = useState(false);
+
+  // Modal de denúncia
+  const [reportVisivel, setReportVisivel] = useState(false);
 
   const meuUid = auth.currentUser?.uid;
   const curtiu = meuUid ? curtidas.includes(meuUid) : false;
@@ -149,7 +159,7 @@ export function ReelItem({ reel, estaVisivel, somAtivo }: Props) {
         }}
       />
 
-      {/* Avatar + nome + botão Seguir (topo) */}
+      {/* Avatar + nome + botão Seguir (topo esquerdo) */}
       <View style={styles.topInfo} pointerEvents="box-none">
         <TouchableOpacity
           style={styles.autorRow}
@@ -183,6 +193,15 @@ export function ReelItem({ reel, estaVisivel, somAtivo }: Props) {
           </View>
         )}
       </View>
+
+      {/* Botão ⋯ (topo direito) */}
+      <TouchableOpacity
+        style={styles.menuBtn}
+        onPress={() => setMenuAberto(true)}
+        activeOpacity={0.7}
+      >
+        <Ionicons name="ellipsis-horizontal" size={22} color="#fff" />
+      </TouchableOpacity>
 
       {/* Info em baixo */}
       <View style={styles.bottomInfo} pointerEvents="box-none">
@@ -226,6 +245,31 @@ export function ReelItem({ reel, estaVisivel, somAtivo }: Props) {
           <Ionicons name="paper-plane-outline" size={28} color="#fff" />
         </View>
       </View>
+
+      {/* Menu ⋯ */}
+      <PostMenu
+        visivel={menuAberto}
+        fechar={() => setMenuAberto(false)}
+        tipo="reel"
+        conteudoId={reel.id}
+        autorId={reel.autorId}
+        autorNome={reel.autorNome}
+        onDenunciar={() => setReportVisivel(true)}
+        onApagado={() => {
+          // Após apagar, chama o callback (feed remove da lista)
+          setTimeout(() => onApagado?.(), 200);
+        }}
+      />
+
+      {/* Modal de denúncia */}
+      <ReportModal
+        visivel={reportVisivel}
+        fechar={() => setReportVisivel(false)}
+        tipo="post"
+        alvoId={reel.id}
+        postId={reel.id}
+        conteudoDenunciado={reel.legenda || '[Reel sem legenda]'}
+      />
     </View>
   );
 }
@@ -279,11 +323,21 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 60,
     left: 16,
-    right: 16,
+    right: 100,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     zIndex: 10,
+  },
+  menuBtn: {
+    position: 'absolute',
+    top: 60,
+    right: 60,
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 11,
   },
   autorRow: {
     flexDirection: 'row',
