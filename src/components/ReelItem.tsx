@@ -14,11 +14,8 @@ import {
   View,
 } from 'react-native';
 import { auth } from '../services/firebase';
-import {
-  addLikeReel,
-  Reel,
-  removeLikeReel,
-} from '../services/reels';
+import { addLikeReel, Reel, removeLikeReel } from '../services/reels';
+import { FollowButton } from './FollowButton';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
@@ -58,7 +55,6 @@ export function ReelItem({ reel, estaVisivel, somAtivo }: Props) {
     p.muted = !somAtivo;
   });
 
-  // Deteta quando o vídeo está pronto
   const { status } = useEvent(player, 'statusChange', {
     status: player.status,
   });
@@ -182,13 +178,9 @@ export function ReelItem({ reel, estaVisivel, somAtivo }: Props) {
         </TouchableOpacity>
 
         {!souEu && (
-          <TouchableOpacity
-            style={styles.followBtn}
-            onPress={() => router.push(`/user/${reel.autorId}` as any)}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.followText}>Seguir</Text>
-          </TouchableOpacity>
+          <View style={styles.followWrapper}>
+            <FollowButton userId={reel.autorId} compact />
+          </View>
         )}
       </View>
 
@@ -298,6 +290,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     flex: 1,
+    marginRight: 12,
   },
   avatar: {
     width: 40,
@@ -320,19 +313,10 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 15,
     fontWeight: '700',
+    flexShrink: 1,
   },
-  followBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 6,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.4)',
-  },
-  followText: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '700',
+  followWrapper: {
+    minWidth: 100,
   },
   bottomInfo: {
     position: 'absolute',
