@@ -4,20 +4,18 @@ import { useRouter } from 'expo-router';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Dimensions,
-    Image,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Dimensions,
+  Image,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { auth } from '../services/firebase';
-import {
-    addLikeReel,
-    Reel,
-    removeLikeReel,
-} from '../services/reels';
+import { addLikeReel, Reel, removeLikeReel } from '../services/reels';
+import { PostMenu } from './PostMenu';
+import { ReportModal } from './ReportModal';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const VIDEO_WIDTH = Math.min(SCREEN_W - 32, 568);
@@ -53,15 +51,20 @@ function formatarDuracao(segundos: number): string {
 interface Props {
   reel: Reel;
   estaVisivel: boolean;
+  onApagado?: () => void;
 }
 
-export function FeedReelCard({ reel, estaVisivel }: Props) {
+export function FeedReelCard({ reel, estaVisivel, onApagado }: Props) {
   const router = useRouter();
   const [curtidas, setCurtidas] = useState<string[]>(reel.curtidas || []);
   const [curtindo, setCurtindo] = useState(false);
   const [somAtivo, setSomAtivo] = useState(false);
   const [videoPronto, setVideoPronto] = useState(false);
   const [pausadoManualmente, setPausadoManualmente] = useState(false);
+
+  // Menu ⋯
+  const [menuAberto, setMenuAberto] = useState(false);
+  const [reportVisivel, setReportVisivel] = useState(false);
 
   const meuUid = auth.currentUser?.uid;
   const curtiu = meuUid ? curtidas.includes(meuUid) : false;
@@ -72,7 +75,6 @@ export function FeedReelCard({ reel, estaVisivel }: Props) {
     p.muted = true;
   });
 
-  // Deteta quando o vídeo está pronto
   const { status } = useEvent(player, 'statusChange', {
     status: player.status,
   });
@@ -83,7 +85,6 @@ export function FeedReelCard({ reel, estaVisivel }: Props) {
     }
   }, [status]);
 
-  // Controla play/pause baseado na visibilidade
   useEffect(() => {
     if (!player) return;
 
@@ -100,7 +101,6 @@ export function FeedReelCard({ reel, estaVisivel }: Props) {
     }
   }, [estaVisivel, somAtivo, pausadoManualmente, player]);
 
-  // Cleanup ao desmontar
   useEffect(() => {
     return () => {
       try {
@@ -109,14 +109,12 @@ export function FeedReelCard({ reel, estaVisivel }: Props) {
     };
   }, [player]);
 
-  // Se sair do ecrã, reseta o pause manual
   useEffect(() => {
     if (!estaVisivel) {
       setPausadoManualmente(false);
     }
   }, [estaVisivel]);
 
-  // Atualiza curtidas
   useEffect(() => {
     setCurtidas(reel.curtidas || []);
   }, [reel.curtidas]);
@@ -149,7 +147,6 @@ export function FeedReelCard({ reel, estaVisivel }: Props) {
   }
 
   function togglePlayPause(e: any) {
-    // Não propaga o toque para o card
     e?.stopPropagation?.();
 
     try {
@@ -168,42 +165,50 @@ export function FeedReelCard({ reel, estaVisivel }: Props) {
   return (
     <View style={styles.card}>
       {/* Header — igual ao post */}
-      <TouchableOpacity
-        style={styles.header}
-        onPress={() => router.push(`/user/${reel.autorId}` as any)}
-        activeOpacity={0.7}
-      >
-        {reel.autorFotoURL ? (
-          <Image source={{ uri: reel.autorFotoURL }} style={styles.avatar} />
-        ) : (
-          <View style={[styles.avatar, styles.avatarFallback]}>
-            <Text style={styles.avatarFallbackText}>
-              {reel.autorNome.charAt(0).toUpperCase()}
-            </Text>
-          </View>
-        )}
-
-        <View style={styles.headerInfo}>
-          <Text style={styles.autorNome}>{reel.autorNome}</Text>
-          <View style={styles.metaRow}>
-            <View
-              style={[
-                styles.roleBadge,
-                { backgroundColor: roleCor + '20' },
-              ]}
-            >
-              <Text style={[styles.roleText, { color: roleCor }]}>
-                {reel.autorRole}
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.headerLeft}
+          onPress={() => router.push(`/user/${reel.autorId}` as any)}
+          activeOpacity={0.7}
+        >
+          {reel.autorFotoURL ? (
+            <Image source={{ uri: reel.autorFotoURL }} style={styles.avatar} />
+          ) : (
+            <View style={[styles.avatar, styles.avatarFallback]}>
+              <Text style={styles.avatarFallbackText}>
+                {reel.autorNome.charAt(0).toUpperCase()}
               </Text>
             </View>
-            <Text style={styles.meta}>
-              {formatarTempoRelativo(reel.criadoEm)}
-            </Text>
-          </View>
-        </View>
-      </TouchableOpacity>
+          )}
 
-      {/* Vídeo 4:5 com autoplay */}
+          <View style={styles.headerInfo}>
+            <Text style={styles.autorNome}>{reel.autorNome}</Text>
+            <View style={styles.metaRow}>
+              <View
+                style={[styles.roleBadge, { backgroundColor: roleCor + '20' }]}
+              >
+                <Text style={[styles.roleText, { color: roleCor }]}>
+                  {reel.autorRole}
+                </Text>
+              </View>
+              <Text style={styles.meta}>
+                {formatarTempoRelativo(reel.criadoEm)}
+              </Text>
+            </View>
+          </View>
+        </TouchableOpacity>
+
+        {/* Botão ⋯ */}
+        <TouchableOpacity
+          style={styles.moreBtn}
+          onPress={() => setMenuAberto(true)}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="ellipsis-horizontal" size={22} color="#1a1a1a" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Vídeo 4:5 */}
       <TouchableOpacity
         style={styles.videoWrapper}
         onPress={abrirPlayer}
@@ -216,14 +221,12 @@ export function FeedReelCard({ reel, estaVisivel }: Props) {
           nativeControls={false}
         />
 
-        {/* Spinner enquanto carrega */}
         {!videoPronto && (
           <View style={styles.loadingOverlay}>
             <ActivityIndicator size="large" color="#fff" />
           </View>
         )}
 
-        {/* Indicador de pausa (se pausado manualmente) */}
         {videoPronto && pausadoManualmente && (
           <TouchableOpacity
             style={styles.playOverlay}
@@ -236,7 +239,6 @@ export function FeedReelCard({ reel, estaVisivel }: Props) {
           </TouchableOpacity>
         )}
 
-        {/* Botão de som (canto superior direito) */}
         <TouchableOpacity
           style={styles.soundBtn}
           onPress={(e) => {
@@ -252,7 +254,6 @@ export function FeedReelCard({ reel, estaVisivel }: Props) {
           />
         </TouchableOpacity>
 
-        {/* Duração (canto inferior direito) */}
         <View style={styles.durationBadge}>
           <Ionicons name="play-circle" size={12} color="#fff" />
           <Text style={styles.durationText}>
@@ -261,14 +262,12 @@ export function FeedReelCard({ reel, estaVisivel }: Props) {
         </View>
       </TouchableOpacity>
 
-      {/* Legenda */}
       {reel.legenda ? (
         <Text style={styles.legenda} numberOfLines={3}>
           {reel.legenda}
         </Text>
       ) : null}
 
-      {/* Footer — igual ao post */}
       <View style={styles.footer}>
         <TouchableOpacity
           style={styles.action}
@@ -304,6 +303,30 @@ export function FeedReelCard({ reel, estaVisivel }: Props) {
           <Text style={styles.actionText}>0</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Menu ⋯ */}
+      <PostMenu
+        visivel={menuAberto}
+        fechar={() => setMenuAberto(false)}
+        tipo="reel"
+        conteudoId={reel.id}
+        autorId={reel.autorId}
+        autorNome={reel.autorNome}
+        onDenunciar={() => setReportVisivel(true)}
+        onApagado={() => {
+          setTimeout(() => onApagado?.(), 200);
+        }}
+      />
+
+      {/* Modal de denúncia */}
+      <ReportModal
+        visivel={reportVisivel}
+        fechar={() => setReportVisivel(false)}
+        tipo="post"
+        alvoId={reel.id}
+        postId={reel.id}
+        conteudoDenunciado={reel.legenda || '[Reel sem legenda]'}
+      />
     </View>
   );
 }
@@ -319,6 +342,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 12,
+  },
+  headerLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  moreBtn: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   avatar: {
     width: 44,

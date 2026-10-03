@@ -2,14 +2,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    Dimensions,
-    FlatList,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
-    ViewToken,
+  ActivityIndicator,
+  Dimensions,
+  FlatList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  ViewToken,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ReelItem } from '../../components/ReelItem';
@@ -37,7 +37,6 @@ export default function ReelDetailScreen() {
 
   const flatListRef = useRef<FlatList>(null);
 
-  // Escuta reels
   useEffect(() => {
     const unsub = escutarReels((lista) => {
       setReels(lista);
@@ -46,7 +45,7 @@ export default function ReelDetailScreen() {
     return () => unsub();
   }, []);
 
-  // Quando os reels carregam, procura o reelId e faz scroll
+  // Scroll automático para o reelId
   useEffect(() => {
     if (loading || scrolled) return;
     if (reels.length === 0) return;
@@ -60,16 +59,26 @@ export default function ReelDetailScreen() {
     setIndexVisivel(idx);
     setScrolled(true);
 
-    // Aguarda o FlatList estar pronto
     setTimeout(() => {
       try {
         flatListRef.current?.scrollToIndex({ index: idx, animated: false });
       } catch (e) {
-        // Se falhar, tenta com getItemLayout
         console.error('Erro scrollToIndex:', e);
       }
     }, 150);
   }, [loading, reels, reelId, scrolled]);
+
+  // Se o reel atual foi apagado, remove da lista
+  function handleApagado(reelIdApagado: string) {
+    setReels((prev) => {
+      const novos = prev.filter((r) => r.id !== reelIdApagado);
+      if (novos.length === 0) {
+        // Se era o último, sai
+        setTimeout(() => router.back(), 100);
+      }
+      return novos;
+    });
+  }
 
   const onViewableItemsChanged = useRef(
     ({ viewableItems }: { viewableItems: ViewToken[] }) => {
@@ -83,7 +92,6 @@ export default function ReelDetailScreen() {
     itemVisiblePercentThreshold: 60,
   }).current;
 
-  // Reel não encontrado
   if (naoEncontrado) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
@@ -137,6 +145,7 @@ export default function ReelDetailScreen() {
             reel={item}
             estaVisivel={index === indexVisivel}
             somAtivo={somAtivo}
+            onApagado={() => handleApagado(item.id)}
           />
         )}
         pagingEnabled
@@ -156,7 +165,6 @@ export default function ReelDetailScreen() {
         maxToRenderPerBatch={2}
         removeClippedSubviews
         onScrollToIndexFailed={(info) => {
-          // Fallback
           setTimeout(() => {
             flatListRef.current?.scrollToOffset({
               offset: info.averageItemLength * info.index,
@@ -166,7 +174,6 @@ export default function ReelDetailScreen() {
         }}
       />
 
-      {/* Botão voltar (topo esquerdo) */}
       <TouchableOpacity
         style={styles.backBtn}
         onPress={() => router.back()}
@@ -175,7 +182,6 @@ export default function ReelDetailScreen() {
         <Ionicons name="chevron-back" size={26} color="#fff" />
       </TouchableOpacity>
 
-      {/* Botão som (topo direito) */}
       <TouchableOpacity
         style={styles.soundBtn}
         onPress={() => setSomAtivo(!somAtivo)}

@@ -40,7 +40,6 @@ export default function ReelsScreen() {
     return () => unsub();
   }, []);
 
-  // Deteta qual reel está visível
   const onViewableItemsChanged = useRef(
     ({ viewableItems }: { viewableItems: ViewToken[] }) => {
       if (viewableItems.length > 0 && viewableItems[0].index !== null) {
@@ -52,6 +51,10 @@ export default function ReelsScreen() {
   const viewabilityConfig = useRef({
     itemVisiblePercentThreshold: 60,
   }).current;
+
+  function handleApagado(reelId: string) {
+    setReels((prev) => prev.filter((r) => r.id !== reelId));
+  }
 
   if (loading) {
     return (
@@ -91,6 +94,7 @@ export default function ReelsScreen() {
             reel={item}
             estaVisivel={index === indexVisivel}
             somAtivo={somAtivo}
+            onApagado={() => handleApagado(item.id)}
           />
         )}
         pagingEnabled
@@ -111,7 +115,7 @@ export default function ReelsScreen() {
         removeClippedSubviews
       />
 
-      {/* Botão som (canto superior direito) */}
+      {/* Botão som */}
       <TouchableOpacity
         style={styles.soundBtn}
         onPress={() => setSomAtivo(!somAtivo)}
@@ -124,7 +128,7 @@ export default function ReelsScreen() {
         />
       </TouchableOpacity>
 
-      {/* Botão criar reel (canto superior esquerdo) */}
+      {/* Botão criar */}
       <TouchableOpacity
         style={styles.createBtn}
         onPress={() => router.push('/create-reel' as any)}
@@ -137,10 +141,7 @@ export default function ReelsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COR.fundo,
-  },
+  container: { flex: 1, backgroundColor: COR.fundo },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -174,11 +175,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginTop: 16,
   },
-  emptyButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '700',
-  },
+  emptyButtonText: { color: '#fff', fontSize: 14, fontWeight: '700' },
   soundBtn: {
     position: 'absolute',
     top: 60,

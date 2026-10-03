@@ -2,24 +2,26 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    Dimensions,
-    FlatList,
-    Image,
-    NativeScrollEvent,
-    NativeSyntheticEvent,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
-    ViewToken,
+  ActivityIndicator,
+  Dimensions,
+  FlatList,
+  Image,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  ViewToken,
 } from 'react-native';
 import { escutarContagemComentarios } from '../services/comments';
 import { auth } from '../services/firebase';
 import { addLike, escutarPosts, Post, removeLike } from '../services/posts';
 import { escutarReels, Reel } from '../services/reels';
 import { FeedReelCard } from './FeedReelCard';
+import { PostMenu } from './PostMenu';
+import { ReportModal } from './ReportModal';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const IMAGE_WIDTH = Math.min(SCREEN_W - 32, 568);
@@ -56,6 +58,10 @@ export function ExploreFeed() {
   const [loading, setLoading] = useState(true);
   const [indexVisivel, setIndexVisivel] = useState(0);
 
+  // Menu ⋯ para posts
+  const [postMenuAberto, setPostMenuAberto] = useState<Post | null>(null);
+  const [reportPostVisivel, setReportPostVisivel] = useState(false);
+
   useEffect(() => {
     const unsub1 = escutarPosts((lista) => setPosts(lista));
     const unsub2 = escutarReels((lista) => {
@@ -71,11 +77,9 @@ export function ExploreFeed() {
 
   const meuUid = auth.currentUser?.uid;
 
-  // Filtra posts/reels meus (para explorar)
   const postsFiltrados = posts.filter((p) => p.autorId !== meuUid);
   const reelsFiltrados = reels.filter((r) => r.autorId !== meuUid);
 
-  // Junta tudo e ordena cronologicamente
   const todos: ItemFeed[] = [
     ...postsFiltrados.map((p) => ({
       tipo: 'post' as const,
@@ -89,7 +93,6 @@ export function ExploreFeed() {
     })),
   ].sort((a, b) => b.ordem - a.ordem);
 
-  // Deteta qual item está visível (para autoplay dos reels)
   const onViewableItemsChanged = useRef(
     ({ viewableItems }: { viewableItems: ViewToken[] }) => {
       if (viewableItems.length > 0 && viewableItems[0].index !== null) {
@@ -129,29 +132,67 @@ export function ExploreFeed() {
       );
     }
 
-    return <PostFeedCard post={item.dados as Post} />;
+    return (
+      <PostFeedCard
+        post={item.dados as Post}
+        onMenuPress={() => setPostMenuAberto(item.dados as Post)}
+      />
+    );
   }
 
   return (
-    <FlatList
-      data={todos}
-      keyExtractor={(item) => `${item.tipo}-${item.dados.id}`}
-      renderItem={renderItem}
-      contentContainerStyle={styles.listContent}
-      onViewableItemsChanged={onViewableItemsChanged}
-      viewabilityConfig={viewabilityConfig}
-      windowSize={3}
-      initialNumToRender={2}
-      maxToRenderPerBatch={3}
-      removeClippedSubviews
-    />
+    <>
+      <FlatList
+        data={todos}
+        keyExtractor={(item) => `${item.tipo}-${item.dados.id}`}
+        renderItem={renderItem}
+        contentContainerStyle={styles.listContent}
+        onViewableItemsChanged={onViewableItemsChanged}
+        viewabilityConfig={viewabilityConfig}
+        windowSize={3}
+        initialNumToRender={2}
+        maxToRenderPerBatch={3}
+        removeClippedSubviews
+      />
+
+      {/* Menu ⋯ para posts */}
+      <PostMenu
+        visivel={!!postMenuAberto}
+        fechar={() => setPostMenuAberto(null)}
+        tipo="post"
+        conteudoId={postMenuAberto?.id || ''}
+        autorId={postMenuAberto?.autorId || ''}
+        autorNome={postMenuAberto?.autorNome}
+        onDenunciar={() => setReportPostVisivel(true)}
+      />
+
+      {/* Modal de denúncia */}
+      {postMenuAberto && (
+        <ReportModal
+          visivel={reportPostVisivel}
+          fechar={() => setReportPostVisivel(false)}
+          tipo="post"
+          alvoId={postMenuAberto.id}
+          postId={postMenuAberto.id}
+          conteudoDenunciado={
+            postMenuAberto.conteudo || '[Publicação com imagens]'
+          }
+        />
+      )}
+    </>
   );
 }
 
 /**
  * Card de post no feed (igual ao "Para ti")
  */
-function PostFeedCard({ post }: { post: Post }) {
+function PostFeedCard({
+  post,
+  onMenuPress,
+}: {
+  post: Post;
+  onMenuPress: () => void;
+}) {
   const router = useRouter();
   const uid = auth.currentUser?.uid;
   const [loading, setLoading] = useState(false);
@@ -179,37 +220,47 @@ function PostFeedCard({ post }: { post: Post }) {
 
   return (
     <View style={styles.postCard}>
-      <TouchableOpacity
-        style={styles.postHeader}
-        onPress={() => router.push(`/user/${post.autorId}` as any)}
-        activeOpacity={0.7}
-      >
-        {post.autorFotoURL ? (
-          <Image source={{ uri: post.autorFotoURL }} style={styles.avatar} />
-        ) : (
-          <View style={[styles.avatar, styles.avatarFallback]}>
-            <Text style={styles.avatarFallbackText}>
-              {post.autorNome.charAt(0).toUpperCase()}
-            </Text>
-          </View>
-        )}
-
-        <View style={styles.headerInfo}>
-          <Text style={styles.autorNome}>{post.autorNome}</Text>
-          <View style={styles.metaRow}>
-            <View
-              style={[styles.roleBadge, { backgroundColor: roleCor + '20' }]}
-            >
-              <Text style={[styles.roleText, { color: roleCor }]}>
-                {post.autorRole}
+      <View style={styles.postHeader}>
+        <TouchableOpacity
+          style={styles.postHeaderLeft}
+          onPress={() => router.push(`/user/${post.autorId}` as any)}
+          activeOpacity={0.7}
+        >
+          {post.autorFotoURL ? (
+            <Image source={{ uri: post.autorFotoURL }} style={styles.avatar} />
+          ) : (
+            <View style={[styles.avatar, styles.avatarFallback]}>
+              <Text style={styles.avatarFallbackText}>
+                {post.autorNome.charAt(0).toUpperCase()}
               </Text>
             </View>
-            <Text style={styles.meta}>
-              {formatarTempoRelativo(post.criadoEm)}
-            </Text>
+          )}
+
+          <View style={styles.headerInfo}>
+            <Text style={styles.autorNome}>{post.autorNome}</Text>
+            <View style={styles.metaRow}>
+              <View
+                style={[styles.roleBadge, { backgroundColor: roleCor + '20' }]}
+              >
+                <Text style={[styles.roleText, { color: roleCor }]}>
+                  {post.autorRole}
+                </Text>
+              </View>
+              <Text style={styles.meta}>
+                {formatarTempoRelativo(post.criadoEm)}
+              </Text>
+            </View>
           </View>
-        </View>
-      </TouchableOpacity>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.moreBtn}
+          onPress={onMenuPress}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="ellipsis-horizontal" size={22} color="#1a1a1a" />
+        </TouchableOpacity>
+      </View>
 
       {post.conteudo ? (
         <Text style={styles.postConteudo}>{post.conteudo}</Text>
@@ -351,6 +402,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 12,
+  },
+  postHeaderLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  moreBtn: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   avatar: {
     width: 44,
