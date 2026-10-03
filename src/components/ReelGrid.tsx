@@ -4,27 +4,24 @@ import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
-  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
-  useWindowDimensions,
   View,
 } from 'react-native';
 import { escutarReelsDoUser, Reel } from '../services/reels';
+
+const NUM_COLUNAS = 3;
 
 interface Props {
   userId: string;
 }
 
-const NUM_COLUNAS = 3;
-const MAX_WIDTH_DESKTOP = 600;
-
 export function ReelGrid({ userId }: Props) {
   const router = useRouter();
-  const { width: windowWidth } = useWindowDimensions();
   const [reels, setReels] = useState<Reel[]>([]);
   const [loading, setLoading] = useState(true);
+  const [largura, setLargura] = useState(0);
 
   useEffect(() => {
     const unsub = escutarReelsDoUser(userId, (lista) => {
@@ -34,9 +31,7 @@ export function ReelGrid({ userId }: Props) {
     return () => unsub();
   }, [userId]);
 
-  const containerWidth =
-    Platform.OS === 'web' ? Math.min(windowWidth, MAX_WIDTH_DESKTOP) : windowWidth;
-  const tamanho = containerWidth / NUM_COLUNAS;
+  const tamanho = largura > 0 ? largura / NUM_COLUNAS : 0;
 
   if (loading) {
     return (
@@ -56,46 +51,41 @@ export function ReelGrid({ userId }: Props) {
   }
 
   return (
-    <View style={styles.grid}>
-      {reels.map((reel) => (
-        <TouchableOpacity
-          key={reel.id}
-          style={[styles.gridItem, { width: tamanho, height: tamanho }]}
-          onPress={() => router.push(`/reel/${reel.id}` as any)}
-          activeOpacity={0.85}
-        >
-          {reel.thumbURL ? (
-            <Image
-              source={{ uri: reel.thumbURL }}
-              style={styles.gridImage}
-              resizeMode="cover"
-            />
-          ) : (
-            <View style={[styles.gridImage, styles.videoBg]}>
-              <Ionicons
-                name="videocam"
-                size={32}
-                color="rgba(255,255,255,0.5)"
+    <View
+      style={styles.grid}
+      onLayout={(e) => setLargura(e.nativeEvent.layout.width)}
+    >
+      {tamanho > 0 &&
+        reels.map((reel) => (
+          <TouchableOpacity
+            key={reel.id}
+            style={[styles.cell, { width: tamanho, height: tamanho }]}
+            onPress={() => router.push(`/reel/${reel.id}` as any)}
+            activeOpacity={0.85}
+          >
+            {reel.thumbURL ? (
+              <Image
+                source={{ uri: reel.thumbURL }}
+                style={styles.imagem}
+                resizeMode="cover"
               />
+            ) : (
+              // Placeholder cinzento (reel sem thumbnail)
+              <View style={styles.placeholder}>
+                <Ionicons
+                  name="videocam-outline"
+                  size={28}
+                  color="#b7b7b7"
+                />
+              </View>
+            )}
+
+            {/* Badge ▶ no canto superior direito */}
+            <View style={styles.playBadge}>
+              <Ionicons name="play" size={10} color="#fff" />
             </View>
-          )}
-
-          {/* Badge ▶ no canto superior direito */}
-          <View style={styles.videoBadge}>
-            <Ionicons name="videocam" size={16} color="#fff" />
-          </View>
-
-          {/* Duração em baixo */}
-          <View style={styles.durationBadge}>
-            <Text style={styles.durationText}>
-              {Math.floor(reel.duracao / 60)}:
-              {Math.floor(reel.duracao % 60)
-                .toString()
-                .padStart(2, '0')}
-            </Text>
-          </View>
-        </TouchableOpacity>
-      ))}
+          </TouchableOpacity>
+        ))}
     </View>
   );
 }
@@ -104,34 +94,36 @@ const styles = StyleSheet.create({
   loading: { paddingVertical: 60, alignItems: 'center' },
   empty: { paddingVertical: 60, alignItems: 'center', gap: 12 },
   emptyText: { fontSize: 14, color: '#999' },
-  grid: { flexDirection: 'row', flexWrap: 'wrap' },
-  gridItem: { position: 'relative', backgroundColor: '#111' },
-  gridImage: { width: '100%', height: '100%' },
-  videoBg: {
-    backgroundColor: '#111',
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    width: '100%',
+  },
+  cell: {
+    position: 'relative',
+    backgroundColor: '#f2f2f2',
+  },
+  imagem: {
+    width: '100%',
+    height: '100%',
+  },
+  placeholder: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#ececec',
   },
-  videoBadge: {
+  playBadge: {
     position: 'absolute',
-    top: 8,
-    right: 8,
+    top: 6,
+    right: 6,
+    width: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.6,
-    shadowRadius: 2,
-  },
-  durationBadge: {
-    position: 'absolute',
-    bottom: 8,
-    left: 8,
-  },
-  durationText: {
-    color: '#fff',
-    fontSize: 11,
-    fontWeight: '700',
-    textShadowColor: 'rgba(0,0,0,0.8)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    shadowOpacity: 0.5,
+    shadowRadius: 1.5,
   },
 });
