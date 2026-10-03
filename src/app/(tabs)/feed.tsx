@@ -22,6 +22,7 @@ import { ScreenContainer } from '../../components/ScreenContainer';
 import { StoriesBar } from '../../components/StoriesBar';
 import { escutarContagemComentarios } from '../../services/comments';
 import { auth } from '../../services/firebase';
+import { escutarContagemNaoLidas } from '../../services/notifications';
 import {
   addLike,
   escutarFeedPersonalizado,
@@ -49,6 +50,7 @@ export default function FeedScreen() {
   const [seguidosIds, setSeguidosIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [naoLidas, setNaoLidas] = useState(0);
 
   useEffect(() => {
     const user = auth.currentUser;
@@ -66,10 +68,13 @@ export default function FeedScreen() {
 
     const unsub3 = escutarSeguidos(user.uid, setSeguidosIds);
 
+    const unsub4 = escutarContagemNaoLidas(user.uid, setNaoLidas);
+
     return () => {
       unsub1();
       unsub2();
       unsub3();
+      unsub4();
     };
   }, []);
 
@@ -163,7 +168,20 @@ export default function FeedScreen() {
               style={styles.headerBtn}
               onPress={() => router.push('/(tabs)/notifications')}
             >
-              <Ionicons name="notifications-outline" size={26} color="#1a1a1a" />
+              <View style={styles.bellWrapper}>
+                <Ionicons
+                  name="notifications-outline"
+                  size={26}
+                  color="#1a1a1a"
+                />
+                {naoLidas > 0 && (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>
+                      {naoLidas > 99 ? '99+' : naoLidas}
+                    </Text>
+                  </View>
+                )}
+              </View>
             </TouchableOpacity>
           </View>
         )}
@@ -418,6 +436,28 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#1a1a1a',
     textAlign: 'center',
+  },
+  bellWrapper: {
+    position: 'relative',
+  },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -6,
+    backgroundColor: '#DC2626',
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '700',
   },
   innerTabs: {
     flexDirection: 'row',

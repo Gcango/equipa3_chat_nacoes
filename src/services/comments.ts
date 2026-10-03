@@ -5,6 +5,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   onSnapshot,
   orderBy,
   query,
@@ -13,6 +14,7 @@ import {
   updateDoc,
 } from 'firebase/firestore';
 import { auth, db } from './firebase';
+import { criarNotificacao } from './notifications';
 import { getUserProfile } from './users';
 
 export interface Resposta {
@@ -22,7 +24,7 @@ export interface Resposta {
   autorFotoURL: string;
   autorRole: string;
   texto: string;
-  criadoEm: any; // Timestamp do Firestore
+  criadoEm: any;
 }
 
 export interface Comentario {
@@ -37,7 +39,7 @@ export interface Comentario {
 }
 
 /**
- * Cria um comentário num post
+ * Cria um comentário + notifica o autor do post
  */
 export async function criarComentario(
   postId: string,
@@ -50,7 +52,7 @@ export async function criarComentario(
   if (!perfil) throw new Error('Perfil não encontrado');
 
   const comentariosRef = collection(db, 'posts', postId, 'comentarios');
-  await addDoc(comentariosRef, {
+  const docRef = await addDoc(comentariosRef, {
     autorId: user.uid,
     autorNome: perfil.nome || user.email?.split('@')[0] || 'Utilizador',
     autorFotoURL: perfil.fotoURL || '',
@@ -59,6 +61,25 @@ export async function criarComentario(
     criadoEm: serverTimestamp(),
     respostas: [],
   });
+
+  // Notificar autor do post (se não for o próprio)
+  try {
+    const postSnap = await getDoc(doc(db, 'posts', postId));
+    if (postSnap.exists()) {
+      const autorId = postSnap.data().autorId;
+      if (autorId && autorId !== user.uid) {
+        await criarNotificacao({
+          destinatarioId: autorId,
+          tipo: 'comentario',
+          postId: postId,
+          comentarioId: docRef.id,
+          texto: texto.trim().slice(0, 80),
+        });
+      }
+    }
+  } catch (e) {
+    console.error('Erro ao criar notificação de comentário:', e);
+  }
 }
 
 /**
@@ -71,7 +92,7 @@ export function escutarComentarios(
   const comentariosRef = collection(db, 'posts', postId, 'comentarios');
   const q = query(comentariosRef, orderBy('criadoEm', 'asc'));
 
-  const unsubscribe = onSnapshot(
+  return onSnapshot(
     q,
     (snapshot) => {
       const lista: Comentario[] = snapshot.docs.map((doc) => {
@@ -88,8 +109,6 @@ export function escutarComentarios(
       console.error('Erro ao escutar comentários:', error);
     }
   );
-
-  return unsubscribe;
 }
 
 /**
@@ -118,7 +137,7 @@ export function escutarContagemComentarios(
 }
 
 /**
- * Adiciona uma resposta a um comentário
+ * Adiciona uma resposta a um comentário + notifica o autor do comentário
  */
 export async function responderComentario(
   postId: string,
@@ -145,6 +164,25 @@ export async function responderComentario(
   await updateDoc(comentarioRef, {
     respostas: arrayUnion(novaResposta),
   });
+
+  // Notificar autor do comentário original (se não for o próprio)
+  try {
+    const comentSnap = await getDoc(comentarioRef);
+    if (comentSnap.exists()) {
+      const autorComentarioId = comentSnap.data().autorId;
+      if (autorComentarioId && autorComentarioId !== user.uid) {
+        await criarNotificacao({
+          destinatarioId: autorComentarioId,
+          tipo: 'resposta',
+          postId: postId,
+          comentarioId: comentarioId,
+          texto: texto.trim().slice(0, 80),
+        });
+      }
+    }
+  } catch (e) {
+    console.error('Erro ao criar notificação de resposta:', e);
+  }
 }
 
 /**

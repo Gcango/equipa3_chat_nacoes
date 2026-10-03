@@ -10,6 +10,7 @@ import {
   where,
 } from 'firebase/firestore';
 import { auth, db } from './firebase';
+import { criarNotificacao } from './notifications';
 
 // ============================================================
 // SEGUIR / DEIXAR DE SEGUIR
@@ -19,6 +20,9 @@ function followDocId(followerId: string, followedId: string): string {
   return `${followerId}_${followedId}`;
 }
 
+/**
+ * Segue um utilizador + cria notificação para o seguido
+ */
 export async function seguirUser(followedId: string): Promise<void> {
   const user = auth.currentUser;
   if (!user) throw new Error('Utilizador não autenticado');
@@ -30,6 +34,16 @@ export async function seguirUser(followedId: string): Promise<void> {
     followedId: followedId,
     criadoEm: serverTimestamp(),
   });
+
+  // Notificar quem foi seguido
+  try {
+    await criarNotificacao({
+      destinatarioId: followedId,
+      tipo: 'seguir',
+    });
+  } catch (e) {
+    console.error('Erro ao criar notificação de seguir:', e);
+  }
 }
 
 export async function deixarDeSeguirUser(followedId: string): Promise<void> {

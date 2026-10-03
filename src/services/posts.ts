@@ -5,6 +5,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   onSnapshot,
   orderBy,
   query,
@@ -14,6 +15,7 @@ import {
   where,
 } from 'firebase/firestore';
 import { auth, db } from './firebase';
+import { criarNotificacao } from './notifications';
 import { uploadImagensPost } from './storage';
 import { getUserProfile } from './users';
 
@@ -62,7 +64,6 @@ export async function criarPost(
 
 /**
  * Escuta TODAS as publicações (para Explorar)
- * Filtragem adicional feita no cliente
  */
 export function escutarPosts(callback: (posts: Post[]) => void): () => void {
   const postsRef = collection(db, 'posts');
@@ -102,22 +103,18 @@ export function escutarFeedPersonalizado(
   let unsubscribePosts: (() => void) | null = null;
 
   const unsubscribeFollows = onSnapshot(qFollows, (snapFollows) => {
-    // IDs de quem eu sigo
     const seguidos = snapFollows.docs.map((d) => d.data().followedId as string);
 
-    // Cancela listener anterior
     if (unsubscribePosts) {
       unsubscribePosts();
       unsubscribePosts = null;
     }
 
-    // Se não sigo ninguém → devolve vazio
     if (seguidos.length === 0) {
       callback([]);
       return;
     }
 
-    // Firestore `in` aceita até 30 valores
     const idsLimitados = seguidos.slice(0, 30);
 
     const postsRef = collection(db, 'posts');
@@ -205,7 +202,7 @@ export function escutarPostsDoUser(
 }
 
 /**
- * Escuta contagem de posts de um utilizador (para perfil)
+ * Escuta contagem de posts de um utilizador
  */
 export function escutarContagemPosts(
   userId: string,
@@ -228,7 +225,7 @@ export async function apagarPost(postId: string): Promise<void> {
 }
 
 /**
- * Adiciona um like
+ * Adiciona um like + cria notificação
  */
 export async function addLike(postId: string): Promise<void> {
   const user = auth.currentUser;
@@ -236,6 +233,23 @@ export async function addLike(postId: string): Promise<void> {
 
   const postRef = doc(db, 'posts', postId);
   await updateDoc(postRef, { curtidas: arrayUnion(user.uid) });
+
+  // Notificar autor do post (se não for o próprio)
+  try {
+    const postSnap = await getDoc(postRef);
+    if (postSnap.exists()) {
+      const autorId = postSnap.data().autorId;
+      if (autorId && autorId !== user.uid) {
+        await criarNotificacao({
+          destinatarioId: autorId,
+          tipo: 'like',
+          postId: postId,
+        });
+      }
+    }
+  } catch (e) {
+    console.error('Erro ao criar notificação de like:', e);
+  }
 }
 
 /**

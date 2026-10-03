@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FollowButton } from '../../components/FollowButton';
 import { PostGrid } from '../../components/PostGrid';
+import { abrirChatComUser } from '../../services/chats';
 import { escutarContadores } from '../../services/follows';
 import { escutarContagemPosts } from '../../services/posts';
 import { getUserProfile, UserProfile } from '../../services/users';
@@ -30,6 +31,7 @@ export default function UserProfileScreen() {
   const { userId } = useLocalSearchParams<{ userId: string }>();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [aAbrirChat, setAAbrirChat] = useState(false);
   const [contadores, setContadores] = useState({
     seguidores: 0,
     aSeguir: 0,
@@ -63,6 +65,19 @@ export default function UserProfileScreen() {
       unsub2();
     };
   }, [userId]);
+
+  async function handleEnviarMensagem() {
+    if (!profile) return;
+    setAAbrirChat(true);
+    try {
+      const chatId = await abrirChatComUser(profile.uid);
+      router.push(`/chat/${chatId}` as any);
+    } catch (e) {
+      console.error('Erro ao abrir chat:', e);
+    } finally {
+      setAAbrirChat(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -160,6 +175,25 @@ export default function UserProfileScreen() {
 
         <View style={styles.actions}>
           <FollowButton userId={profile.uid} />
+          <TouchableOpacity
+            style={styles.msgButton}
+            onPress={handleEnviarMensagem}
+            disabled={aAbrirChat}
+            activeOpacity={0.7}
+          >
+            {aAbrirChat ? (
+              <ActivityIndicator size="small" color="#2563EB" />
+            ) : (
+              <>
+                <Ionicons
+                  name="chatbubble-outline"
+                  size={18}
+                  color="#2563EB"
+                />
+                <Text style={styles.msgButtonText}>Mensagem</Text>
+              </>
+            )}
+          </TouchableOpacity>
         </View>
 
         <View style={styles.tabs}>
@@ -259,6 +293,23 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 20,
     marginBottom: 20,
+  },
+  msgButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#2563EB',
+    backgroundColor: '#EFF6FF',
+  },
+  msgButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2563EB',
   },
   tabs: {
     flexDirection: 'row',
