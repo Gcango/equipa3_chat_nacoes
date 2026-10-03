@@ -1,17 +1,20 @@
 import {
-    addDoc,
-    collection,
-    doc,
-    getDoc,
-    increment,
-    onSnapshot,
-    orderBy,
-    query,
-    serverTimestamp,
-    setDoc,
-    Timestamp,
-    updateDoc,
-    where
+  addDoc,
+  arrayUnion,
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  increment,
+  onSnapshot,
+  orderBy,
+  query,
+  serverTimestamp,
+  setDoc,
+  Timestamp,
+  updateDoc,
+  where,
+  writeBatch
 } from 'firebase/firestore';
 import { auth, db } from './firebase';
 import { getUserProfile } from './users';
@@ -30,23 +33,25 @@ export interface Mensagem {
   id: string;
   autorId: string;
   texto: string;
+  visto: boolean;
+  apagadaPara: string[];
+  apagadaParaTodos: boolean;
   criadoEm: Timestamp | null;
 }
 
-/**
- * Gera um ID único para o chat (par ordenado de uids)
- */
+// ============================================================
+// UTILITÁRIOS
+// ============================================================
+
 export function gerarChatId(uid1: string, uid2: string): string {
   return [uid1, uid2].sort().join('_');
 }
 
-/**
- * Abre (ou cria) um chat com outro user
- * Devolve o chatId
- */
-export async function abrirChatComUser(
-  outroUid: string
-): Promise<string> {
+// ============================================================
+// CRIAR / ABRIR CHAT
+// ============================================================
+
+export async function abrirChatComUser(outroUid: string): Promise<string> {
   const user = auth.currentUser;
   if (!user) throw new Error('Utilizador não autenticado');
   if (user.uid === outroUid) throw new Error('Não podes falar contigo próprio');
@@ -69,9 +74,10 @@ export async function abrirChatComUser(
   return chatId;
 }
 
-/**
- * Envia uma mensagem
- */
+// ============================================================
+// ENVIAR MENSAGEM
+// ============================================================
+
 export async function enviarMensagem(
   chatId: string,
   texto: string
@@ -80,15 +86,16 @@ export async function enviarMensagem(
   if (!user) throw new Error('Utilizador não autenticado');
   if (!texto.trim()) return;
 
-  // Adiciona a mensagem na subcoleção
   const mensagensRef = collection(db, 'chats', chatId, 'mensagens');
   await addDoc(mensagensRef, {
     autorId: user.uid,
     texto: texto.trim(),
+    visto: false,
+    apagadaPara: [],
+    apagadaParaTodos: false,
     criadoEm: serverTimestamp(),
   });
 
-  // Atualiza o chat com info da última mensagem
   const chatRef = doc(db, 'chats', chatId);
   const chatSnap = await getDoc(chatRef);
   if (!chatSnap.exists()) return;
@@ -105,9 +112,10 @@ export async function enviarMensagem(
   });
 }
 
-/**
- * Escuta as mensagens de um chat (tempo real)
- */
+// ============================================================
+// ESCUTAR MENSAGENS
+// ============================================================
+
 export function escutarMensagens(
   chatId: string,
   callback: (mensagens: Mensagem[]) => void
@@ -118,10 +126,18 @@ export function escutarMensagens(
   return onSnapshot(
     q,
     (snap) => {
-      const lista: Mensagem[] = snap.docs.map((d) => ({
-        id: d.id,
-        ...d.data(),
-      })) as Mensagem[];
+      const lista: Mensagem[] = snap.docs.map((d) => {
+        const data = d.data();
+        return {
+          id: d.id,
+          autorId: data.autorId,
+          texto: data.texto || '',
+          visto: data.visto || false,
+          apagadaPara: data.apagadaPara || [],
+          apagadaParaTodos: data.apagadaParaTodos || false,
+          criadoEm: data.criadoEm,
+        } as Mensagem;
+      });
       callback(lista);
     },
     (error) => {
@@ -130,18 +146,16 @@ export function escutarMensagens(
   );
 }
 
-/**
- * Escuta a lista de chats de um utilizador
- */
+// ============================================================
+// ESCUTAR LISTA DE CHATS
+// ============================================================
+
 export function escutarChats(
   userId: string,
   callback: (chats: Chat[]) => void
 ): () => void {
   const chatsRef = collection(db, 'chats');
-  const q = query(
-    chatsRef,
-    where('participantes', 'array-contains', userId)
-  );
+  const q = query(chatsRef, where('participantes', 'array-contains', userId));
 
   return onSnapshot(
     q,
@@ -151,7 +165,6 @@ export function escutarChats(
         ...d.data(),
       })) as Chat[];
 
-      // Ordena por última mensagem (mais recente primeiro)
       lista.sort((a, b) => {
         const aT = a.ultimaMensagemAt?.toMillis?.() || 0;
         const bT = b.ultimaMensagemAt?.toMillis?.() || 0;
@@ -166,9 +179,10 @@ export function escutarChats(
   );
 }
 
-/**
- * Marca um chat como lido (zera o contador de não lidas do user)
- */
+// ============================================================
+// MARCAR COMO LIDO / VISTO
+// ============================================================
+
 export async function marcarChatComoLido(
   chatId: string,
   userId: string
@@ -183,18 +197,83 @@ export async function marcarChatComoLido(
   }
 }
 
+export async function marcarMensagensComoVistas(
+  chatId: string,
+  userId: string
+): Promise<void> {
+  try {
+    const mensagensRef = collection(db, 'chats', chatId, 'mensagens');
+    const q = query(
+      mensagensRef,
+      where('autorId', '!=', userId),
+      where('visto', '==', false)
+    );
+
+    const snap = await getDocs(q);
+    if (snap.empty) return;
+
+    const batch = writeBatch(db);
+    snap.docs.forEach((d) => batch.update(d.ref, { visto: true }));
+    await batch.commit();
+  } catch (e) {
+    console.error('Erro ao marcar mensagens como vistas:', e);
+  }
+}
+
+// ============================================================
+// APAGAR MENSAGENS
+// ============================================================
+
 /**
- * Calcula total de não lidas para o badge
+ * Apaga uma mensagem só para o user atual
  */
-export function calcularTotalNaoLidas(chats: Chat[], userId: string): number {
+export async function apagarMensagemParaMim(
+  chatId: string,
+  mensagemId: string,
+  userId: string
+): Promise<void> {
+  try {
+    const msgRef = doc(db, 'chats', chatId, 'mensagens', mensagemId);
+    await updateDoc(msgRef, {
+      apagadaPara: arrayUnion(userId),
+    });
+  } catch (e) {
+    console.error('Erro ao apagar mensagem para mim:', e);
+    throw e;
+  }
+}
+
+/**
+ * Apaga uma mensagem para todos (só se for minha e não vista)
+ */
+export async function apagarMensagemParaTodos(
+  chatId: string,
+  mensagemId: string
+): Promise<void> {
+  try {
+    const msgRef = doc(db, 'chats', chatId, 'mensagens', mensagemId);
+    await updateDoc(msgRef, {
+      apagadaParaTodos: true,
+    });
+  } catch (e) {
+    console.error('Erro ao apagar mensagem para todos:', e);
+    throw e;
+  }
+}
+
+// ============================================================
+// INFORMAÇÃO DO OUTRO USER
+// ============================================================
+
+export function calcularTotalNaoLidas(
+  chats: Chat[],
+  userId: string
+): number {
   return chats.reduce((total, chat) => {
     return total + (chat.naoLidas?.[userId] || 0);
   }, 0);
 }
 
-/**
- * Info do outro participante de um chat
- */
 export interface InfoOutroUser {
   uid: string;
   nome: string;

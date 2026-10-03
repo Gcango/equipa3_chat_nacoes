@@ -3,26 +3,32 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { doc, getDoc } from 'firebase/firestore';
 import { useEffect, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    FlatList,
-    Image,
-    KeyboardAvoidingView,
-    Platform,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Image,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-    Chat,
-    enviarMensagem,
-    escutarMensagens,
-    getInfoOutroUser,
-    InfoOutroUser,
-    marcarChatComoLido,
-    Mensagem,
+  apagarMensagemParaMim,
+  apagarMensagemParaTodos,
+  Chat,
+  enviarMensagem,
+  escutarMensagens,
+  getInfoOutroUser,
+  InfoOutroUser,
+  marcarChatComoLido,
+  marcarMensagensComoVistas,
+  Mensagem,
 } from '../../services/chats';
 import { auth, db } from '../../services/firebase';
 
@@ -38,6 +44,7 @@ const COR = {
   acentoClaro: '#EFF6FF',
   minhaMensagem: '#2563EB',
   outraMensagem: '#F3F4F6',
+  perigo: '#DC2626',
 };
 
 const ROLE_COR: Record<string, string> = {
@@ -67,10 +74,13 @@ export default function ChatScreen() {
   const [enviando, setEnviando] = useState(false);
   const [outro, setOutro] = useState<InfoOutroUser | null>(null);
 
+  // Menu de apagar mensagem
+  const [menuMensagem, setMenuMensagem] = useState<Mensagem | null>(null);
+
   const flatListRef = useRef<FlatList>(null);
   const meuUid = auth.currentUser?.uid;
 
-  // Carrega info do outro user + marca como lido
+  // Carrega info do outro user + marca como lido/visto
   useEffect(() => {
     if (!chatId || !meuUid) return;
 
@@ -82,8 +92,8 @@ export default function ChatScreen() {
           const info = await getInfoOutroUser(chat, meuUid!);
           setOutro(info);
 
-          // Marca como lido
           await marcarChatComoLido(chatId, meuUid!);
+          await marcarMensagensComoVistas(chatId, meuUid!);
         }
       } catch (e) {
         console.error('Erro ao carregar chat:', e);
@@ -98,15 +108,26 @@ export default function ChatScreen() {
     if (!chatId) return;
 
     const unsub = escutarMensagens(chatId, (lista) => {
-      setMensagens(lista);
+      // Filtra mensagens apagadas para mim ou para todos
+      const filtradas = lista.filter((m) => {
+        if (m.apagadaParaTodos) return false;
+        if (meuUid && m.apagadaPara.includes(meuUid)) return false;
+        return true;
+      });
+
+      setMensagens(filtradas);
       setLoading(false);
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
+
+      if (meuUid) {
+        marcarMensagensComoVistas(chatId, meuUid);
+      }
     });
 
     return () => unsub();
-  }, [chatId]);
+  }, [chatId, meuUid]);
 
   async function handleEnviar() {
     if (!texto.trim() || !chatId || enviando) return;
@@ -122,9 +143,55 @@ export default function ChatScreen() {
       }, 100);
     } catch (e) {
       console.error('Erro ao enviar:', e);
-      setTexto(textoGuardar); // Restaura se falhar
+      setTexto(textoGuardar);
     } finally {
       setEnviando(false);
+    }
+  }
+
+  // ============ APAGAR MENSAGEM ============
+  function abrirMenuMensagem(msg: Mensagem) {
+    setMenuMensagem(msg);
+  }
+
+  function fecharMenuMensagem() {
+    setMenuMensagem(null);
+  }
+
+  async function handleApagarParaMim() {
+    if (!chatId || !meuUid || !menuMensagem) return;
+
+    try {
+      await apagarMensagemParaMim(chatId, menuMensagem.id, meuUid);
+      fecharMenuMensagem();
+    } catch (e: any) {
+      Alert.alert('Erro', 'Não foi possível apagar.');
+    }
+  }
+
+  async function handleApagarParaTodos() {
+    if (!chatId || !menuMensagem) return;
+
+    const executar = async () => {
+      try {
+        await apagarMensagemParaTodos(chatId, menuMensagem.id);
+        fecharMenuMensagem();
+      } catch (e: any) {
+        Alert.alert('Erro', 'Não foi possível apagar.');
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm('Apagar esta mensagem para todos?')) executar();
+    } else {
+      Alert.alert(
+        'Apagar para todos',
+        'Esta ação remove a mensagem para ambos. Continuar?',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Apagar', style: 'destructive', onPress: executar },
+        ]
+      );
     }
   }
 
@@ -142,7 +209,6 @@ export default function ChatScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => router.back()}
@@ -158,7 +224,10 @@ export default function ChatScreen() {
             activeOpacity={0.7}
           >
             {outro.fotoURL ? (
-              <Image source={{ uri: outro.fotoURL }} style={styles.headerAvatar} />
+              <Image
+                source={{ uri: outro.fotoURL }}
+                style={styles.headerAvatar}
+              />
             ) : (
               <View
                 style={[
@@ -181,11 +250,9 @@ export default function ChatScreen() {
         <View style={styles.backBtn} />
       </View>
 
-      {/* Mensagens */}
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
         {mensagens.length === 0 ? (
           <View style={styles.emptyContainer}>
@@ -216,7 +283,9 @@ export default function ChatScreen() {
                     minha ? styles.msgRowMinha : styles.msgRowOutra,
                   ]}
                 >
-                  <View
+                  <Pressable
+                    onLongPress={() => abrirMenuMensagem(item)}
+                    delayLongPress={300}
                     style={[
                       styles.msgBubble,
                       minha ? styles.msgMinha : styles.msgOutra,
@@ -230,22 +299,35 @@ export default function ChatScreen() {
                     >
                       {item.texto}
                     </Text>
-                    <Text
-                      style={[
-                        styles.msgHora,
-                        minha ? styles.msgHoraMinha : styles.msgHoraOutra,
-                      ]}
-                    >
-                      {formatarHora(item.criadoEm)}
-                    </Text>
-                  </View>
+                    <View style={styles.msgFooter}>
+                      <Text
+                        style={[
+                          styles.msgHora,
+                          minha ? styles.msgHoraMinha : styles.msgHoraOutra,
+                        ]}
+                      >
+                        {formatarHora(item.criadoEm)}
+                      </Text>
+                      {minha && (
+                        <Ionicons
+                          name={item.visto ? 'checkmark-done' : 'checkmark'}
+                          size={14}
+                          color={
+                            item.visto
+                              ? '#4FC3F7'
+                              : 'rgba(255,255,255,0.6)'
+                          }
+                          style={{ marginLeft: 4 }}
+                        />
+                      )}
+                    </View>
+                  </Pressable>
                 </View>
               );
             }}
           />
         )}
 
-        {/* Input */}
         <View style={styles.inputBar}>
           <TextInput
             style={styles.input}
@@ -273,6 +355,54 @@ export default function ChatScreen() {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+
+      {/* Bottom sheet de apagar mensagem */}
+      <Modal
+        visible={!!menuMensagem}
+        transparent
+        animationType="slide"
+        onRequestClose={fecharMenuMensagem}
+      >
+        <Pressable style={styles.modalOverlay} onPress={fecharMenuMensagem}>
+          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.sheetHandle} />
+
+            <View style={styles.sheetHeader}>
+              <Text style={styles.sheetTitle}>Opções da mensagem</Text>
+            </View>
+
+            <TouchableOpacity
+              style={styles.sheetOption}
+              onPress={handleApagarParaMim}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="trash-outline" size={22} color={COR.textoPrincipal} />
+              <Text style={styles.sheetOptionText}>Apagar para mim</Text>
+            </TouchableOpacity>
+
+            {menuMensagem?.autorId === meuUid && !menuMensagem?.visto && (
+              <TouchableOpacity
+                style={styles.sheetOption}
+                onPress={handleApagarParaTodos}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="trash" size={22} color={COR.perigo} />
+                <Text style={[styles.sheetOptionText, { color: COR.perigo }]}>
+                  Apagar para todos
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              style={styles.sheetCancelar}
+              onPress={fecharMenuMensagem}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.sheetCancelarText}>Cancelar</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -366,10 +496,15 @@ const styles = StyleSheet.create({
   msgTextOutra: {
     color: COR.textoPrincipal,
   },
+  msgFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    marginTop: 4,
+    gap: 2,
+  },
   msgHora: {
     fontSize: 10,
-    marginTop: 4,
-    alignSelf: 'flex-end',
   },
   msgHoraMinha: {
     color: 'rgba(255,255,255,0.7)',
@@ -434,5 +569,61 @@ const styles = StyleSheet.create({
     color: COR.textoMedio,
     textAlign: 'center',
     maxWidth: 300,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 24,
+  },
+  sheetHandle: {
+    alignSelf: 'center',
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#D1D5DB',
+    marginTop: 10,
+    marginBottom: 16,
+  },
+  sheetHeader: {
+    paddingHorizontal: 24,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  sheetTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  sheetOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+  },
+  sheetOptionText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#111827',
+  },
+  sheetCancelar: {
+    marginHorizontal: 24,
+    marginTop: 12,
+    paddingVertical: 14,
+    borderRadius: 10,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+  },
+  sheetCancelarText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#111827',
   },
 });
