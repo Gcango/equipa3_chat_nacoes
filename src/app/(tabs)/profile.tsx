@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PostGrid } from '../../components/PostGrid';
+import { ReelGrid } from '../../components/ReelGrid';
 import { ScreenContainer } from '../../components/ScreenContainer';
 import { auth } from '../../services/firebase';
 import { escutarContadores } from '../../services/follows';
@@ -120,6 +121,7 @@ export default function ProfileScreen() {
     <ScreenContainer>
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <ScrollView contentContainerStyle={styles.scrollContent}>
+          {/* Header */}
           <View style={styles.header}>
             <Text style={styles.headerTitle}>{nomeExibir}</Text>
             <TouchableOpacity
@@ -129,6 +131,7 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           </View>
 
+          {/* Avatar + Contadores */}
           <View style={styles.topRow}>
             <View style={styles.avatarWrapper}>
               {profile.fotoURL ? (
@@ -172,6 +175,7 @@ export default function ProfileScreen() {
             </View>
           </View>
 
+          {/* Nome + Bio */}
           <View style={styles.bio}>
             <Text style={styles.nome}>{nomeExibir}</Text>
             <View style={[styles.roleBadge, { backgroundColor: roleCor + '20' }]}>
@@ -184,6 +188,7 @@ export default function ProfileScreen() {
             ) : null}
           </View>
 
+          {/* Botão Editar perfil */}
           <TouchableOpacity
             style={styles.editButton}
             onPress={() => router.push('/(tabs)/edit-profile' as any)}
@@ -191,6 +196,7 @@ export default function ProfileScreen() {
             <Text style={styles.editButtonText}>Editar perfil</Text>
           </TouchableOpacity>
 
+          {/* Botão Painel de Administração (só admins e só mobile) */}
           {profile.role === 'admin' && !isDesktop && (
             <TouchableOpacity
               style={styles.adminButton}
@@ -203,6 +209,7 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           )}
 
+          {/* Abas */}
           <View style={styles.tabs}>
             <TouchableOpacity
               style={[styles.tab, abaAtiva === 'posts' && styles.tabActive]}
@@ -226,13 +233,11 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           </View>
 
+          {/* Conteúdo */}
           {abaAtiva === 'posts' ? (
             <PostGrid userId={profile.uid} />
           ) : (
-            <View style={styles.emptyTab}>
-              <Ionicons name="videocam-outline" size={48} color="#ccc" />
-              <Text style={styles.emptyTabText}>Reels em breve</Text>
-            </View>
+            <ReelGrid userId={profile.uid} />
           )}
         </ScrollView>
       </SafeAreaView>
@@ -361,14 +366,5 @@ const styles = StyleSheet.create({
   },
   tabActive: {
     borderBottomColor: '#1a1a1a',
-  },
-  emptyTab: {
-    paddingVertical: 60,
-    alignItems: 'center',
-    gap: 12,
-  },
-  emptyTabText: {
-    fontSize: 14,
-    color: '#999',
   },
 });

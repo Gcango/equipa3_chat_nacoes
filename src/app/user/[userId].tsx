@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FollowButton } from '../../components/FollowButton';
 import { PostGrid } from '../../components/PostGrid';
+import { ReelGrid } from '../../components/ReelGrid';
 import { abrirChatComUser } from '../../services/chats';
 import { escutarContadores } from '../../services/follows';
 import { escutarContagemPosts } from '../../services/posts';
@@ -222,10 +223,7 @@ export default function UserProfileScreen() {
         {abaAtiva === 'posts' ? (
           <PostGrid userId={profile.uid} />
         ) : (
-          <View style={styles.emptyTab}>
-            <Ionicons name="videocam-outline" size={48} color="#ccc" />
-            <Text style={styles.emptyTabText}>Reels em breve</Text>
-          </View>
+          <ReelGrid userId={profile.uid} />
         )}
       </ScrollView>
     </SafeAreaView>
@@ -325,6 +323,4 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
   },
   tabActive: { borderBottomColor: '#1a1a1a' },
-  emptyTab: { paddingVertical: 60, alignItems: 'center', gap: 12 },
-  emptyTabText: { fontSize: 14, color: '#999' },
 });

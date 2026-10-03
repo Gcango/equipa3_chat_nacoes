@@ -14,6 +14,7 @@ export default function RootLayout() {
       <Stack.Screen name="chat/[chatId]" />
       <Stack.Screen name="nova-conversa" />
       <Stack.Screen name="create-reel" />
+      <Stack.Screen name="reel/[reelId]" />
       <Stack.Screen name="setup-admin" />
       <Stack.Screen name="migrar-usernames" />
     </Stack>
