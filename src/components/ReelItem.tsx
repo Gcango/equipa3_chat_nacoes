@@ -14,7 +14,11 @@ import {
   View,
 } from 'react-native';
 import { auth } from '../services/firebase';
-import { addLikeReel, Reel, removeLikeReel } from '../services/reels';
+import {
+  addLikeReel,
+  Reel,
+  removeLikeReel,
+} from '../services/reels';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
@@ -47,14 +51,14 @@ export function ReelItem({ reel, estaVisivel, somAtivo }: Props) {
   const meuUid = auth.currentUser?.uid;
   const curtiu = meuUid ? curtidas.includes(meuUid) : false;
   const totalCurtidas = curtidas.length;
+  const souEu = meuUid === reel.autorId;
 
-  // Player
   const player = useVideoPlayer(reel.videoURL, (p) => {
     p.loop = true;
     p.muted = !somAtivo;
   });
 
-  // Deteta quando o vídeo está pronto (statusChange)
+  // Deteta quando o vídeo está pronto
   const { status } = useEvent(player, 'statusChange', {
     status: player.status,
   });
@@ -65,7 +69,6 @@ export function ReelItem({ reel, estaVisivel, somAtivo }: Props) {
     }
   }, [status]);
 
-  // Controla play/pause baseado em visibilidade + som
   useEffect(() => {
     if (!player) return;
 
@@ -82,18 +85,14 @@ export function ReelItem({ reel, estaVisivel, somAtivo }: Props) {
     }
   }, [estaVisivel, somAtivo, player]);
 
-  // Cleanup ao desmontar
   useEffect(() => {
     return () => {
       try {
         player.pause();
-      } catch (e) {
-        // ignore
-      }
+      } catch (e) {}
     };
   }, [player]);
 
-  // Atualiza curtidas locais
   useEffect(() => {
     setCurtidas(reel.curtidas || []);
   }, [reel.curtidas]);
@@ -132,7 +131,6 @@ export function ReelItem({ reel, estaVisivel, somAtivo }: Props) {
         nativeControls={false}
       />
 
-      {/* Loading overlay — só até o vídeo estar pronto */}
       {!videoPronto && (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color="#fff" />
@@ -155,7 +153,8 @@ export function ReelItem({ reel, estaVisivel, somAtivo }: Props) {
         }}
       />
 
-      <View style={styles.bottomInfo} pointerEvents="box-none">
+      {/* Avatar + nome + botão Seguir (topo) */}
+      <View style={styles.topInfo} pointerEvents="box-none">
         <TouchableOpacity
           style={styles.autorRow}
           onPress={() => router.push(`/user/${reel.autorId}` as any)}
@@ -182,6 +181,19 @@ export function ReelItem({ reel, estaVisivel, somAtivo }: Props) {
           </Text>
         </TouchableOpacity>
 
+        {!souEu && (
+          <TouchableOpacity
+            style={styles.followBtn}
+            onPress={() => router.push(`/user/${reel.autorId}` as any)}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.followText}>Seguir</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* Info em baixo */}
+      <View style={styles.bottomInfo} pointerEvents="box-none">
         {reel.legenda ? (
           <Text style={styles.legenda} numberOfLines={3}>
             {reel.legenda}
@@ -189,6 +201,7 @@ export function ReelItem({ reel, estaVisivel, somAtivo }: Props) {
         ) : null}
       </View>
 
+      {/* Ações à direita */}
       <View style={styles.actions} pointerEvents="box-none">
         <TouchableOpacity
           style={styles.actionBtn}
@@ -216,6 +229,10 @@ export function ReelItem({ reel, estaVisivel, somAtivo }: Props) {
           <Ionicons name="chatbubble-outline" size={30} color="#fff" />
           <Text style={styles.actionText}>0</Text>
         </TouchableOpacity>
+
+        <View style={styles.actionBtn}>
+          <Ionicons name="paper-plane-outline" size={28} color="#fff" />
+        </View>
       </View>
     </View>
   );
@@ -248,7 +265,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: 120,
+    height: 140,
     backgroundColor: COR.fundoOverlay,
   },
   bottomGradient: {
@@ -266,17 +283,21 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
   },
-  bottomInfo: {
+  topInfo: {
     position: 'absolute',
-    bottom: 32,
+    top: 60,
     left: 16,
-    right: 90,
-    gap: 10,
+    right: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    zIndex: 10,
   },
   autorRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+    flex: 1,
   },
   avatar: {
     width: 40,
@@ -299,6 +320,25 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 15,
     fontWeight: '700',
+  },
+  followBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.4)',
+  },
+  followText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  bottomInfo: {
+    position: 'absolute',
+    bottom: 32,
+    left: 16,
+    right: 90,
   },
   legenda: {
     color: '#fff',

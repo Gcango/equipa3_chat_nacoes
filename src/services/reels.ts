@@ -1,3 +1,4 @@
+import * as VideoThumbnails from 'expo-video-thumbnails';
 import {
   addDoc,
   arrayRemove,
@@ -17,6 +18,7 @@ import {
 import {
   getDownloadURL,
   ref,
+  uploadBytes,
   uploadBytesResumable,
 } from 'firebase/storage';
 import { auth, db, storage } from './firebase';
@@ -37,13 +39,42 @@ export interface Reel {
   criadoEm: Timestamp | null;
 }
 
-const DURACAO_MAX = 60; // segundos
-const TAMANHO_MAX = 25 * 1024 * 1024; // 25 MB
+const DURACAO_MAX = 60;
+const TAMANHO_MAX = 25 * 1024 * 1024;
 
 /**
- * Cria um novo reel
- * Estratégia: fetch(videoUri) → blob → uploadBytesResumable
- * (chunks maiores = menos pedidos HTTP = upload mais rápido)
+ * Gera um thumbnail a partir do vídeo local
+ */
+async function gerarThumbnail(videoUri: string): Promise<string | null> {
+  try {
+    const { uri } = await VideoThumbnails.getThumbnailAsync(videoUri, {
+      time: 1000, // 1 segundo
+      quality: 0.7,
+    });
+    return uri;
+  } catch (e) {
+    console.error('Erro ao gerar thumbnail:', e);
+    return null;
+  }
+}
+
+/**
+ * Upload de thumbnail para o Storage
+ */
+async function uploadThumbnail(
+  uid: string,
+  postId: string,
+  thumbUri: string
+): Promise<string> {
+  const response = await fetch(thumbUri);
+  const blob = await response.blob();
+  const storageRef = ref(storage, `reels/${uid}/${postId}_thumb.jpg`);
+  await uploadBytes(storageRef, blob, { contentType: 'image/jpeg' });
+  return getDownloadURL(storageRef);
+}
+
+/**
+ * Cria um novo reel com thumbnail
  */
 export async function criarReel(params: {
   videoUri: string;
@@ -54,7 +85,6 @@ export async function criarReel(params: {
   const user = auth.currentUser;
   if (!user) throw new Error('Utilizador não autenticado');
 
-  // ✅ Validar duração
   if (params.duracaoSegundos > DURACAO_MAX) {
     throw new Error(`O vídeo tem de ter no máximo ${DURACAO_MAX} segundos.`);
   }
@@ -62,7 +92,6 @@ export async function criarReel(params: {
   const perfil = await getUserProfile(user.uid);
   if (!perfil) throw new Error('Perfil não encontrado');
 
-  // 1. Criar documento para obter o ID
   const reelsRef = collection(db, 'reels');
   const docRef = await addDoc(reelsRef, {
     autorId: user.uid,
@@ -80,13 +109,15 @@ export async function criarReel(params: {
   try {
     params.onProgress?.(5);
 
-    // 2. Ler o vídeo como blob (via fetch — sem base64)
+    // 1. Gerar thumbnail local
+    const thumbUri = await gerarThumbnail(params.videoUri);
+    params.onProgress?.(10);
+
+    // 2. Ler o vídeo como blob
     const response = await fetch(params.videoUri);
     const blob = await response.blob();
-
     params.onProgress?.(15);
 
-    // ✅ Validar tamanho
     if (blob.size > TAMANHO_MAX) {
       await deleteDoc(docRef);
       throw new Error(
@@ -96,7 +127,18 @@ export async function criarReel(params: {
       );
     }
 
-    // 3. Upload com uploadBytesResumable (mais eficiente que uploadBytes)
+    // 3. Upload do thumbnail (se conseguiu gerar)
+    let thumbURL = '';
+    if (thumbUri) {
+      try {
+        thumbURL = await uploadThumbnail(user.uid, docRef.id, thumbUri);
+      } catch (e) {
+        console.error('Erro no upload do thumbnail:', e);
+      }
+    }
+    params.onProgress?.(25);
+
+    // 4. Upload do vídeo com progresso
     const storageRef = ref(storage, `reels/${user.uid}/${docRef.id}.mp4`);
 
     return new Promise<string>((resolve, reject) => {
@@ -109,8 +151,7 @@ export async function criarReel(params: {
         (snapshot) => {
           const progresso =
             (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          // Mapear 0-100% para 15-95% (o resto é o doc no Firestore)
-          const progressoMapeado = 15 + progresso * 0.8;
+          const progressoMapeado = 25 + progresso * 0.7;
           params.onProgress?.(Math.round(progressoMapeado));
         },
         (error) => {
@@ -122,7 +163,10 @@ export async function criarReel(params: {
           try {
             params.onProgress?.(95);
             const downloadURL = await getDownloadURL(storageRef);
-            await updateDoc(docRef, { videoURL: downloadURL });
+            await updateDoc(docRef, {
+              videoURL: downloadURL,
+              thumbURL: thumbURL,
+            });
             params.onProgress?.(100);
             resolve(docRef.id);
           } catch (e) {
@@ -132,16 +176,12 @@ export async function criarReel(params: {
       );
     });
   } catch (error) {
-    // Se upload falhar, apaga o doc
     await deleteDoc(docRef);
     console.error('Erro no upload do reel:', error);
     throw error;
   }
 }
 
-/**
- * Escuta todos os reels (mais recentes em cima)
- */
 export function escutarReels(callback: (reels: Reel[]) => void): () => void {
   const reelsRef = collection(db, 'reels');
   const q = query(reelsRef, orderBy('criadoEm', 'desc'));
@@ -168,9 +208,6 @@ export function escutarReels(callback: (reels: Reel[]) => void): () => void {
   );
 }
 
-/**
- * Escuta reels de um utilizador específico
- */
 export function escutarReelsDoUser(
   userId: string,
   callback: (reels: Reel[]) => void
@@ -204,9 +241,6 @@ export function escutarReelsDoUser(
   );
 }
 
-/**
- * Escuta contagem de reels de um utilizador
- */
 export function escutarContagemReels(
   userId: string,
   callback: (total: number) => void
@@ -219,9 +253,6 @@ export function escutarContagemReels(
   });
 }
 
-/**
- * Adiciona like a um reel + notifica o autor
- */
 export async function addLikeReel(reelId: string): Promise<void> {
   const user = auth.currentUser;
   if (!user) throw new Error('Utilizador não autenticado');
@@ -246,9 +277,6 @@ export async function addLikeReel(reelId: string): Promise<void> {
   }
 }
 
-/**
- * Remove like de um reel
- */
 export async function removeLikeReel(reelId: string): Promise<void> {
   const user = auth.currentUser;
   if (!user) throw new Error('Utilizador não autenticado');
@@ -257,18 +285,35 @@ export async function removeLikeReel(reelId: string): Promise<void> {
   await updateDoc(reelRef, { curtidas: arrayRemove(user.uid) });
 }
 
-/**
- * Apaga um reel
- */
 export async function apagarReel(reelId: string): Promise<void> {
   await deleteDoc(doc(db, 'reels', reelId));
 }
 
-/**
- * Formata duração em segundos para "mm:ss"
- */
 export function formatarDuracao(segundos: number): string {
   const min = Math.floor(segundos / 60);
   const sec = Math.floor(segundos % 60);
   return `${min}:${sec.toString().padStart(2, '0')}`;
+}
+
+/**
+ * Regenera o thumbnail de um reel antigo (one-time)
+ */
+export async function regenerarThumbnailReel(
+  reelId: string,
+  videoUri: string
+): Promise<string | null> {
+  const user = auth.currentUser;
+  if (!user) return null;
+
+  try {
+    const thumbUri = await gerarThumbnail(videoUri);
+    if (!thumbUri) return null;
+
+    const thumbURL = await uploadThumbnail(user.uid, reelId, thumbUri);
+    await updateDoc(doc(db, 'reels', reelId), { thumbURL });
+    return thumbURL;
+  } catch (e) {
+    console.error('Erro ao regenerar thumbnail:', e);
+    return null;
+  }
 }

@@ -18,6 +18,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { ExploreGrid } from '../../components/ExploreGrid';
 import { ScreenContainer } from '../../components/ScreenContainer';
 import { StoriesBar } from '../../components/StoriesBar';
 import { escutarContagemComentarios } from '../../services/comments';
@@ -26,8 +27,6 @@ import { escutarContagemNaoLidas } from '../../services/notifications';
 import {
   addLike,
   escutarFeedPersonalizado,
-  escutarPosts,
-  escutarSeguidos,
   formatarTempoRelativo,
   Post,
   removeLike,
@@ -46,8 +45,6 @@ export default function FeedScreen() {
 
   const [abaAtiva, setAbaAtiva] = useState<Aba>('parati');
   const [postsParaTi, setPostsParaTi] = useState<Post[]>([]);
-  const [postsExplorar, setPostsExplorar] = useState<Post[]>([]);
-  const [seguidosIds, setSeguidosIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [naoLidas, setNaoLidas] = useState(0);
@@ -58,23 +55,15 @@ export default function FeedScreen() {
 
     const unsub1 = escutarFeedPersonalizado(user.uid, (lista) => {
       setPostsParaTi(lista);
-    });
-
-    const unsub2 = escutarPosts((lista) => {
-      setPostsExplorar(lista);
       setLoading(false);
       setRefreshing(false);
     });
 
-    const unsub3 = escutarSeguidos(user.uid, setSeguidosIds);
-
-    const unsub4 = escutarContagemNaoLidas(user.uid, setNaoLidas);
+    const unsub2 = escutarContagemNaoLidas(user.uid, setNaoLidas);
 
     return () => {
       unsub1();
       unsub2();
-      unsub3();
-      unsub4();
     };
   }, []);
 
@@ -82,15 +71,6 @@ export default function FeedScreen() {
     setRefreshing(true);
     setTimeout(() => setRefreshing(false), 800);
   }
-
-  const meuUid = auth.currentUser?.uid;
-  const postsExplorarFiltrados = postsExplorar.filter((post) => {
-    if (post.autorId === meuUid) return false;
-    if (seguidosIds.includes(post.autorId)) return false;
-    return true;
-  });
-
-  const posts = abaAtiva === 'parati' ? postsParaTi : postsExplorarFiltrados;
 
   function renderPost({ item }: { item: Post }) {
     return (
@@ -228,35 +208,34 @@ export default function FeedScreen() {
         </View>
 
         {/* Conteúdo */}
-        {posts.length === 0 ? (
+        {abaAtiva === 'explorar' ? (
+          <ScrollView
+            contentContainerStyle={styles.exploreContent}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            }
+          >
+            <View style={{ width: '100%' }}>
+              <ExploreGrid />
+            </View>
+          </ScrollView>
+        ) : postsParaTi.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Ionicons name="newspaper-outline" size={64} color="#ccc" />
-            <Text style={styles.emptyTitle}>
-              {abaAtiva === 'parati'
-                ? seguidosIds.length === 0
-                  ? 'Ainda não segues ninguém'
-                  : 'Sem publicações'
-                : 'Tudo visto por aqui'}
-            </Text>
+            <Text style={styles.emptyTitle}>Ainda não segues ninguém</Text>
             <Text style={styles.emptySubtitle}>
-              {abaAtiva === 'parati'
-                ? seguidosIds.length === 0
-                  ? 'Descobre pessoas em "Explorar" e começa a seguir.'
-                  : 'As pessoas que segues ainda não publicaram nada.'
-                : 'Já viste todas as publicações da comunidade.'}
+              Descobre pessoas em "Explorar" e começa a seguir.
             </Text>
-            {abaAtiva === 'parati' && seguidosIds.length === 0 && (
-              <TouchableOpacity
-                style={styles.emptyButton}
-                onPress={() => setAbaAtiva('explorar')}
-              >
-                <Text style={styles.emptyButtonText}>Ir para Explorar</Text>
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity
+              style={styles.emptyButton}
+              onPress={() => setAbaAtiva('explorar')}
+            >
+              <Text style={styles.emptyButtonText}>Ir para Explorar</Text>
+            </TouchableOpacity>
           </View>
         ) : (
           <FlatList
-            data={posts}
+            data={postsParaTi}
             keyExtractor={(item) => item.id}
             renderItem={renderPost}
             contentContainerStyle={styles.listContent}
@@ -485,6 +464,10 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: 8,
+    paddingBottom: 24,
+  },
+  exploreContent: {
+    padding: 0,
     paddingBottom: 24,
   },
   postCard: {

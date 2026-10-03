@@ -18,7 +18,6 @@ interface Props {
 }
 
 const NUM_COLUNAS = 3;
-const ESPACO = 2;
 const MAX_WIDTH_DESKTOP = 600;
 
 export function PostGrid({ userId }: Props) {
@@ -35,19 +34,14 @@ export function PostGrid({ userId }: Props) {
     return () => unsub();
   }, [userId]);
 
-  // Calcula largura do container
-  // No desktop, limita a 600 (igual ao ScreenContainer)
-  const containerWidth = Platform.OS === 'web'
-    ? Math.min(windowWidth, MAX_WIDTH_DESKTOP)
-    : windowWidth;
-
-  // Tamanho de cada quadrado (subtrai os gaps)
-  const tamanho = (containerWidth - ESPACO * (NUM_COLUNAS - 1) - ESPACO * 2) / NUM_COLUNAS;
+  const containerWidth =
+    Platform.OS === 'web' ? Math.min(windowWidth, MAX_WIDTH_DESKTOP) : windowWidth;
+  const tamanho = containerWidth / NUM_COLUNAS;
 
   if (loading) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator color="#007AFF" />
+        <ActivityIndicator color="#2563EB" />
       </View>
     );
   }
@@ -70,12 +64,8 @@ export function PostGrid({ userId }: Props) {
           <TouchableOpacity
             key={post.id}
             style={[styles.gridItem, { width: tamanho, height: tamanho }]}
-            onPress={() =>
-              router.push(
-                `/post/${post.id}?postAutorId=${post.autorId}` as any
-              )
-            }
-            activeOpacity={0.7}
+            onPress={() => router.push(`/post/${post.id}` as any)}
+            activeOpacity={0.85}
           >
             {temImagem ? (
               <Image
@@ -91,8 +81,9 @@ export function PostGrid({ userId }: Props) {
               </View>
             )}
 
+            {/* Badge de múltiplas imagens */}
             {post.imagens && post.imagens.length > 1 && (
-              <View style={styles.multiBadge}>
+              <View style={styles.videoBadge}>
                 <Ionicons name="copy-outline" size={12} color="#fff" />
               </View>
             )}
@@ -120,9 +111,6 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: ESPACO,
-    paddingHorizontal: ESPACO,
-    justifyContent: 'flex-start',
   },
   gridItem: {
     position: 'relative',
@@ -145,12 +133,9 @@ const styles = StyleSheet.create({
     color: '#333',
     textAlign: 'center',
   },
-  multiBadge: {
+  videoBadge: {
     position: 'absolute',
-    top: 6,
-    right: 6,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    padding: 4,
-    borderRadius: 4,
+    top: 8,
+    right: 8,
   },
 });

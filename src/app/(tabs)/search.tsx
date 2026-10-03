@@ -3,10 +3,10 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Dimensions,
   FlatList,
   Image,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -14,21 +14,10 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { ExploreGrid } from '../../components/ExploreGrid';
 import { ScreenContainer } from '../../components/ScreenContainer';
 import { auth } from '../../services/firebase';
-import {
-  escutarPosts,
-  escutarSeguidos,
-  Post,
-} from '../../services/posts';
-import {
-  pesquisarUtilizadores,
-  UserProfile,
-} from '../../services/users';
-
-const { width: SCREEN_W } = Dimensions.get('window');
-const NUM_COLUNAS = 3;
-const ESPACO = 2;
+import { pesquisarUtilizadores, UserProfile } from '../../services/users';
 
 const COR = {
   fundo: '#F7F8FA',
@@ -51,31 +40,10 @@ export default function SearchScreen() {
   const router = useRouter();
   const [termo, setTermo] = useState('');
   const [resultados, setResultados] = useState<UserProfile[]>([]);
-  const [postsExplorar, setPostsExplorar] = useState<Post[]>([]);
-  const [seguidosIds, setSeguidosIds] = useState<string[]>([]);
   const [pesquisando, setPesquisando] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [largura, setLargura] = useState(SCREEN_W);
 
-  // Escuta posts para o Explorar
-  useEffect(() => {
-    const user = auth.currentUser;
-    if (!user) return;
+  const meuUid = auth.currentUser?.uid;
 
-    const unsub1 = escutarPosts((lista) => {
-      setPostsExplorar(lista);
-      setLoading(false);
-    });
-
-    const unsub2 = escutarSeguidos(user.uid, setSeguidosIds);
-
-    return () => {
-      unsub1();
-      unsub2();
-    };
-  }, []);
-
-  // Pesquisa com debounce (300ms)
   useEffect(() => {
     if (!termo.trim()) {
       setResultados([]);
@@ -86,88 +54,25 @@ export default function SearchScreen() {
     setPesquisando(true);
     const timeout = setTimeout(async () => {
       const lista = await pesquisarUtilizadores(termo);
-      setResultados(lista);
+      setResultados(lista.filter((u) => u.uid !== meuUid));
       setPesquisando(false);
     }, 300);
 
     return () => clearTimeout(timeout);
-  }, [termo]);
-
-  const meuUid = auth.currentUser?.uid;
-  const postsExplorarFiltrados = postsExplorar.filter((post) => {
-    if (post.autorId === meuUid) return false;
-    if (seguidosIds.includes(post.autorId)) return false;
-    return true;
-  });
+  }, [termo, meuUid]);
 
   const modoPesquisa = termo.trim().length > 0;
 
-  // ============ RENDER — MODO EXPLORAR ============
-  function renderGrid() {
-    if (loading) {
-      return (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COR.acento} />
+  function renderExplorar() {
+    return (
+      <ScrollView contentContainerStyle={styles.gridContent}>
+        <View style={{ width: '100%' }}>
+          <ExploreGrid />
         </View>
-      );
-    }
-
-    if (postsExplorarFiltrados.length === 0) {
-      return (
-        <View style={styles.emptyContainer}>
-          <View style={styles.emptyIconCircle}>
-            <Ionicons name="compass-outline" size={36} color={COR.textoClaro} />
-          </View>
-          <Text style={styles.emptyTitle}>Tudo visto por aqui</Text>
-          <Text style={styles.emptySub}>
-            Já viste todas as publicações da comunidade.
-          </Text>
-        </View>
-      );
-    }
-
-    const tamanho = (largura - ESPACO * (NUM_COLUNAS - 1)) / NUM_COLUNAS;
-
-       return (
-      <FlatList
-        key="explorar-grid"
-        data={postsExplorarFiltrados}
-        keyExtractor={(item) => item.id}
-        numColumns={NUM_COLUNAS}
-        onLayout={(e) => setLargura(e.nativeEvent.layout.width)}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={[styles.gridItem, { width: tamanho, height: tamanho }]}
-            onPress={() => router.push(`/post/${item.id}` as any)}
-            activeOpacity={0.7}
-          >
-            {item.imagens && item.imagens.length > 0 ? (
-              <Image
-                source={{ uri: item.imagens[0] }}
-                style={styles.gridImage}
-                resizeMode="cover"
-              />
-            ) : (
-              <View style={[styles.gridImage, styles.gridTextOnly]}>
-                <Text style={styles.gridText} numberOfLines={5}>
-                  {item.conteudo || 'Sem texto'}
-                </Text>
-              </View>
-            )}
-
-            {item.imagens && item.imagens.length > 1 && (
-              <View style={styles.multiBadge}>
-                <Ionicons name="copy-outline" size={12} color="#fff" />
-              </View>
-            )}
-          </TouchableOpacity>
-        )}
-        contentContainerStyle={styles.gridContent}
-      />
+      </ScrollView>
     );
   }
 
-  // ============ RENDER — MODO PESQUISA ============
   function renderContas() {
     if (pesquisando) {
       return (
@@ -260,7 +165,6 @@ export default function SearchScreen() {
   return (
     <ScreenContainer>
       <SafeAreaView style={styles.safeArea} edges={['top']}>
-        {/* Barra de pesquisa */}
         <View style={styles.searchBarWrapper}>
           <View style={styles.searchBar}>
             <Ionicons name="search" size={20} color={COR.textoMedio} />
@@ -285,8 +189,7 @@ export default function SearchScreen() {
           </View>
         </View>
 
-        {/* Conteúdo */}
-        {modoPesquisa ? renderContas() : renderGrid()}
+        {modoPesquisa ? renderContas() : renderExplorar()}
       </SafeAreaView>
     </ScreenContainer>
   );
@@ -353,41 +256,11 @@ const styles = StyleSheet.create({
     maxWidth: 300,
   },
 
-  // ============ GRID EXPLORAR ============
   gridContent: {
-    padding: ESPACO,
-  },
-  gridItem: {
-    position: 'relative',
-    backgroundColor: COR.divisoria,
-  },
-  gridImage: {
-    width: '100%',
-    height: '100%',
-  },
-  gridTextOnly: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    padding: 8,
-    borderWidth: 1,
-    borderColor: COR.borda,
-  },
-  gridText: {
-    fontSize: 11,
-    color: COR.textoPrincipal,
-    textAlign: 'center',
-  },
-  multiBadge: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    padding: 4,
-    borderRadius: 4,
+    padding: 0,
+    paddingBottom: 24,
   },
 
-  // ============ LISTA DE CONTAS ============
   listContent: {
     paddingVertical: 4,
   },

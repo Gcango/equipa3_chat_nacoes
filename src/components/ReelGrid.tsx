@@ -2,13 +2,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Platform,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    useWindowDimensions,
-    View
+  ActivityIndicator,
+  Image,
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
 } from 'react-native';
 import { escutarReelsDoUser, Reel } from '../services/reels';
 
@@ -17,7 +18,6 @@ interface Props {
 }
 
 const NUM_COLUNAS = 3;
-const ESPACO = 2;
 const MAX_WIDTH_DESKTOP = 600;
 
 export function ReelGrid({ userId }: Props) {
@@ -36,8 +36,7 @@ export function ReelGrid({ userId }: Props) {
 
   const containerWidth =
     Platform.OS === 'web' ? Math.min(windowWidth, MAX_WIDTH_DESKTOP) : windowWidth;
-  const tamanho =
-    (containerWidth - ESPACO * (NUM_COLUNAS - 1) - ESPACO * 2) / NUM_COLUNAS;
+  const tamanho = containerWidth / NUM_COLUNAS;
 
   if (loading) {
     return (
@@ -63,19 +62,30 @@ export function ReelGrid({ userId }: Props) {
           key={reel.id}
           style={[styles.gridItem, { width: tamanho, height: tamanho }]}
           onPress={() => router.push(`/reel/${reel.id}` as any)}
-          activeOpacity={0.7}
+          activeOpacity={0.85}
         >
-          {/* Thumbnail — usa o próprio vídeo como preview */}
-          <View style={[styles.gridImage, styles.videoBg]}>
-            <Ionicons name="videocam" size={28} color="rgba(255,255,255,0.7)" />
-          </View>
+          {reel.thumbURL ? (
+            <Image
+              source={{ uri: reel.thumbURL }}
+              style={styles.gridImage}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={[styles.gridImage, styles.videoBg]}>
+              <Ionicons
+                name="videocam"
+                size={32}
+                color="rgba(255,255,255,0.5)"
+              />
+            </View>
+          )}
 
           {/* Badge ▶ no canto superior direito */}
-          <View style={styles.playBadge}>
-            <Ionicons name="play" size={10} color="#fff" />
+          <View style={styles.videoBadge}>
+            <Ionicons name="videocam" size={16} color="#fff" />
           </View>
 
-          {/* Duração no canto inferior esquerdo */}
+          {/* Duração em baixo */}
           <View style={styles.durationBadge}>
             <Text style={styles.durationText}>
               {Math.floor(reel.duracao / 60)}:
@@ -91,63 +101,37 @@ export function ReelGrid({ userId }: Props) {
 }
 
 const styles = StyleSheet.create({
-  loading: {
-    paddingVertical: 60,
-    alignItems: 'center',
-  },
-  empty: {
-    paddingVertical: 60,
-    alignItems: 'center',
-    gap: 12,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: '#999',
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: ESPACO,
-    paddingHorizontal: ESPACO,
-  },
-  gridItem: {
-    position: 'relative',
-    backgroundColor: '#111',
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  gridImage: {
-    width: '100%',
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  loading: { paddingVertical: 60, alignItems: 'center' },
+  empty: { paddingVertical: 60, alignItems: 'center', gap: 12 },
+  emptyText: { fontSize: 14, color: '#999' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap' },
+  gridItem: { position: 'relative', backgroundColor: '#111' },
+  gridImage: { width: '100%', height: '100%' },
   videoBg: {
     backgroundColor: '#111',
-  },
-  playBadge: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: 'rgba(0,0,0,0.6)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  videoBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.6,
+    shadowRadius: 2,
   },
   durationBadge: {
     position: 'absolute',
-    bottom: 6,
-    left: 6,
-    backgroundColor: 'rgba(0,0,0,0.65)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+    bottom: 8,
+    left: 8,
   },
   durationText: {
     color: '#fff',
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '700',
+    textShadowColor: 'rgba(0,0,0,0.8)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
 });
