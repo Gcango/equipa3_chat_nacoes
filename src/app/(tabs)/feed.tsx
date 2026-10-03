@@ -18,7 +18,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ExploreGrid } from '../../components/ExploreGrid';
+import { ExploreFeed } from '../../components/ExploreFeed';
 import { ScreenContainer } from '../../components/ScreenContainer';
 import { StoriesBar } from '../../components/StoriesBar';
 import { escutarContagemComentarios } from '../../services/comments';
@@ -209,16 +209,7 @@ export default function FeedScreen() {
 
         {/* Conteúdo */}
         {abaAtiva === 'explorar' ? (
-          <ScrollView
-            contentContainerStyle={styles.exploreContent}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-            }
-          >
-            <View style={{ width: '100%' }}>
-              <ExploreGrid />
-            </View>
-          </ScrollView>
+          <ExploreFeed />
         ) : postsParaTi.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Ionicons name="newspaper-outline" size={64} color="#ccc" />
@@ -464,10 +455,6 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: 8,
-    paddingBottom: 24,
-  },
-  exploreContent: {
-    padding: 0,
     paddingBottom: 24,
   },
   postCard: {

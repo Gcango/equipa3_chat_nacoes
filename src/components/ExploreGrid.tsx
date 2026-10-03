@@ -52,8 +52,20 @@ export function ExploreGrid({ apenasPosts = false }: Props) {
 
   const meuUid = auth.currentUser?.uid;
 
-  const postsFiltrados = posts.filter((p) => p.autorId !== meuUid);
-  const reelsFiltrados = reels.filter((r) => r.autorId !== meuUid);
+  // ✅ FILTROS:
+  // - posts: só os que têm pelo menos 1 imagem
+  // - reels: só os que têm thumbURL
+  // - exclui os meus posts/reels
+  const postsFiltrados = posts.filter(
+    (p) =>
+      p.autorId !== meuUid &&
+      p.imagens &&
+      p.imagens.length > 0
+  );
+
+  const reelsFiltrados = reels.filter(
+    (r) => r.autorId !== meuUid && r.thumbURL && r.thumbURL.length > 0
+  );
 
   const todos: ItemExplorar[] = [
     ...postsFiltrados.map((p) => ({
@@ -68,7 +80,6 @@ export function ExploreGrid({ apenasPosts = false }: Props) {
     })),
   ].sort((a, b) => b.ordem - a.ordem);
 
-  // Tamanho exato de cada célula — calculado a partir da largura medida do container
   const tamanho = largura > 0 ? largura / NUM_COLUNAS : 0;
 
   if (loading) {
@@ -98,14 +109,11 @@ export function ExploreGrid({ apenasPosts = false }: Props) {
           const ehReel = item.tipo === 'reel';
           const id = item.dados.id;
 
-          // Escolhe a imagem a mostrar
-          let imagem: string | null = null;
+          let imagem: string;
           if (ehReel) {
-            imagem = (item.dados as Reel).thumbURL || null;
+            imagem = (item.dados as Reel).thumbURL;
           } else {
-            const post = item.dados as Post;
-            imagem =
-              post.imagens && post.imagens.length > 0 ? post.imagens[0] : null;
+            imagem = (item.dados as Post).imagens[0];
           }
 
           return (
@@ -124,29 +132,13 @@ export function ExploreGrid({ apenasPosts = false }: Props) {
               }}
               activeOpacity={0.85}
             >
-              {imagem ? (
-                <Image
-                  source={{ uri: imagem }}
-                  style={styles.imagem}
-                  resizeMode="cover"
-                />
-              ) : (
-                // Placeholder discreto (sem imagem)
-                <View style={styles.placeholder}>
-                  <Ionicons
-                    name={ehReel ? 'videocam-outline' : 'image-outline'}
-                    size={24}
-                    color="#c7c7c7"
-                  />
-                  <Text style={styles.placeholderText} numberOfLines={3}>
-                    {ehReel
-                      ? 'Vídeo'
-                      : (item.dados as Post).conteudo || 'Sem texto'}
-                  </Text>
-                </View>
-              )}
+              <Image
+                source={{ uri: imagem }}
+                style={styles.imagem}
+                resizeMode="cover"
+              />
 
-              {/* Badge de reel (▶ discreto) */}
+              {/* Badge ▶ nos reels */}
               {ehReel && (
                 <View style={styles.reelBadge}>
                   <Ionicons name="play" size={10} color="#fff" />
@@ -184,19 +176,6 @@ const styles = StyleSheet.create({
   imagem: {
     width: '100%',
     height: '100%',
-  },
-  placeholder: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 8,
-    gap: 6,
-    backgroundColor: '#fafafa',
-  },
-  placeholderText: {
-    fontSize: 10,
-    color: '#8a8a8a',
-    textAlign: 'center',
   },
   reelBadge: {
     position: 'absolute',
