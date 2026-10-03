@@ -1,14 +1,17 @@
 import {
-    addDoc,
-    collection,
-    deleteDoc,
-    doc,
-    onSnapshot,
-    orderBy,
-    query,
-    serverTimestamp,
-    Timestamp,
-    where,
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  onSnapshot,
+  orderBy,
+  query,
+  serverTimestamp,
+  setDoc,
+  Timestamp,
+  where,
+  writeBatch
 } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { auth, db, storage } from './firebase';
@@ -24,9 +27,17 @@ export interface Story {
   expiraEm: Timestamp | null;
 }
 
-/**
- * Faz upload da imagem e cria o story no Firestore
- */
+export interface StoryViewer {
+  uid: string;
+  nome: string;
+  fotoURL: string;
+  visualizadoEm: Timestamp | null;
+}
+
+// ============================================================
+// CRIAR
+// ============================================================
+
 export async function criarStory(uri: string): Promise<void> {
   const user = auth.currentUser;
   if (!user) throw new Error('Utilizador não autenticado');
@@ -34,10 +45,9 @@ export async function criarStory(uri: string): Promise<void> {
   const perfil = await getUserProfile(user.uid);
   if (!perfil) throw new Error('Perfil não encontrado');
 
-  // 1. Cria o documento para obter o ID
   const storiesRef = collection(db, 'stories');
   const agora = Date.now();
-  const expiraEm = new Date(agora + 24 * 60 * 60 * 1000); // +24h
+  const expiraEm = new Date(agora + 24 * 60 * 60 * 1000);
 
   const docRef = await addDoc(storiesRef, {
     autorId: user.uid,
@@ -48,7 +58,6 @@ export async function criarStory(uri: string): Promise<void> {
     expiraEm: Timestamp.fromDate(expiraEm),
   });
 
-  // 2. Faz upload da imagem para o Storage
   try {
     const response = await fetch(uri);
     const blob = await response.blob();
@@ -59,21 +68,19 @@ export async function criarStory(uri: string): Promise<void> {
     });
     const downloadURL = await getDownloadURL(storageRef);
 
-    // 3. Atualiza o documento com o URL
     const { updateDoc } = await import('firebase/firestore');
     await updateDoc(docRef, { imagemURL: downloadURL });
   } catch (error) {
-    // Se o upload falhar, apaga o documento
     await deleteDoc(docRef);
     console.error('Erro no upload do story:', error);
     throw error;
   }
 }
 
-/**
- * Escuta TODOS os stories ativos (não expirados)
- * Depois agrupa no cliente por autorId
- */
+// ============================================================
+// ESCUTAR STORIES ATIVOS
+// ============================================================
+
 export function escutarStoriesAtivos(
   callback: (stories: Story[]) => void
 ): () => void {
@@ -97,10 +104,8 @@ export function escutarStoriesAtivos(
             ...data,
           } as Story;
         })
-        // Filtro extra: ignora stories com imagem vazia (upload incompleto)
         .filter((s) => s.imagemURL && s.imagemURL.length > 0);
 
-      // Ordena por criadoEm (mais recente primeiro)
       lista.sort((a, b) => {
         const aT = a.criadoEm?.toMillis?.() || 0;
         const bT = b.criadoEm?.toMillis?.() || 0;
@@ -115,15 +120,16 @@ export function escutarStoriesAtivos(
   );
 }
 
-/**
- * Agrupa stories por utilizador
- */
+// ============================================================
+// AGRUPAR
+// ============================================================
+
 export interface GrupoStories {
   autorId: string;
   autorNome: string;
   autorFotoURL: string;
   stories: Story[];
-  maisRecente: number; // timestamp para ordenação
+  maisRecente: number;
 }
 
 export function agruparPorAutor(stories: Story[]): GrupoStories[] {
@@ -146,7 +152,6 @@ export function agruparPorAutor(stories: Story[]): GrupoStories[] {
     if (ts > grupo.maisRecente) grupo.maisRecente = ts;
   });
 
-  // Ordena cada grupo internamente por criadoEm (mais antigo primeiro)
   const grupos = Array.from(mapa.values());
   grupos.forEach((g) => {
     g.stories.sort((a, b) => {
@@ -156,15 +161,137 @@ export function agruparPorAutor(stories: Story[]): GrupoStories[] {
     });
   });
 
-  // Ordena os grupos por mais recente
   grupos.sort((a, b) => b.maisRecente - a.maisRecente);
 
   return grupos;
 }
 
+// ============================================================
+// VISUALIZAÇÕES
+// ============================================================
+
 /**
- * Apaga um story (só o autor)
+ * Regista uma visualização (ignora o próprio autor e duplicados).
+ * Usa setDoc simples sem getDoc para evitar permission denied na leitura.
+ * Se o viewer já existir, o setDoc falha silenciosamente (timestamp mantém-se).
  */
+export async function registrarVisualizacao(
+  storyId: string,
+  storyAutorId: string
+): Promise<void> {
+  const user = auth.currentUser;
+  if (!user) return;
+
+  // Não registar o próprio autor
+  if (user.uid === storyAutorId) return;
+
+  try {
+    const perfil = await getUserProfile(user.uid);
+    if (!perfil) return;
+
+    const viewerRef = doc(db, 'stories', storyId, 'viewers', user.uid);
+
+    // Tenta criar. Se já existir (permission denied no create porque a regra
+    // bloqueia updates), ignora silenciosamente.
+    await setDoc(viewerRef, {
+      uid: user.uid,
+      nome: perfil.nome || perfil.username || 'Utilizador',
+      fotoURL: perfil.fotoURL || '',
+      visualizadoEm: serverTimestamp(),
+    });
+  } catch (e: any) {
+    // Ignora "permission denied" (viewer já existe)
+    if (!e?.message?.includes('permission')) {
+      console.error('Erro ao registar visualização:', e);
+    }
+  }
+}
+
+/**
+ * Escuta a lista de viewers de um story (só o autor deve poder usar)
+ */
+export function escutarViewers(
+  storyId: string,
+  callback: (viewers: StoryViewer[]) => void
+): () => void {
+  const viewersRef = collection(db, 'stories', storyId, 'viewers');
+  const q = query(viewersRef, orderBy('visualizadoEm', 'desc'));
+
+  return onSnapshot(
+    q,
+    (snap) => {
+      const lista: StoryViewer[] = snap.docs.map((d) => ({
+        uid: d.id,
+        ...d.data(),
+      })) as StoryViewer[];
+      callback(lista);
+    },
+    (error) => {
+      console.error('Erro ao escutar viewers:', error);
+    }
+  );
+}
+
+/**
+ * Escuta a contagem de viewers de um story
+ */
+export function escutarContagemViewers(
+  storyId: string,
+  callback: (total: number) => void
+): () => void {
+  const viewersRef = collection(db, 'stories', storyId, 'viewers');
+
+  return onSnapshot(viewersRef, (snap) => {
+    callback(snap.size);
+  });
+}
+
+// ============================================================
+// APAGAR STORY
+// ============================================================
+
+/**
+ * Apaga um story (só o autor).
+ * Apaga: subcoleção viewers + documento principal (batch atómico)
+ */
+export async function apagarStoryCompleto(storyId: string): Promise<void> {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Utilizador não autenticado');
+
+  try {
+    const storyRef = doc(db, 'stories', storyId);
+    const storySnap = await getDoc(storyRef);
+
+    if (!storySnap.exists()) {
+      throw new Error('Story não encontrado');
+    }
+
+    const data = storySnap.data();
+    if (data.autorId !== user.uid) {
+      throw new Error('Só podes apagar o teu próprio story');
+    }
+
+    // Apaga subcoleção de viewers
+    const { getDocs } = await import('firebase/firestore');
+    const viewersRef = collection(db, 'stories', storyId, 'viewers');
+    const viewersSnap = await getDocs(viewersRef);
+
+    const batch = writeBatch(db);
+    viewersSnap.docs.forEach((d) => batch.delete(d.ref));
+    batch.delete(storyRef);
+    await batch.commit();
+
+    console.log(`🗑️ Story ${storyId} apagado com ${viewersSnap.size} viewers`);
+  } catch (e) {
+    console.error('Erro ao apagar story:', e);
+    throw e;
+  }
+}
+
+// ============================================================
+// APAGAR (legacy)
+// ============================================================
+
 export async function apagarStory(storyId: string): Promise<void> {
   await deleteDoc(doc(db, 'stories', storyId));
 }

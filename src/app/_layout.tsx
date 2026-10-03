@@ -11,6 +11,7 @@ export default function RootLayout() {
       <Stack.Screen name="follows/[userId]" />
       <Stack.Screen name="user/[userId]" />
       <Stack.Screen name="story/[userId]" />
+      <Stack.Screen name="story/viewers/[storyId]" />
       <Stack.Screen name="chat/[chatId]" />
       <Stack.Screen name="nova-conversa" />
       <Stack.Screen name="create-reel" />

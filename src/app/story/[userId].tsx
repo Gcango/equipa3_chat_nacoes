@@ -2,31 +2,41 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    Dimensions,
-    Image,
-    Pressable,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  Image,
+  Modal,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { auth } from '../../services/firebase';
 import {
-    agruparPorAutor,
-    escutarStoriesAtivos,
-    GrupoStories,
-    Story,
+  agruparPorAutor,
+  apagarStoryCompleto,
+  escutarContagemViewers,
+  escutarStoriesAtivos,
+  GrupoStories,
+  registrarVisualizacao,
+  Story,
 } from '../../services/stories';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
-const DURACAO_STORY = 5000; // 5 segundos
+const DURACAO_STORY = 5000;
 
 const COR = {
   texto: '#FFFFFF',
   textoMedio: 'rgba(255,255,255,0.7)',
   barraAtiva: '#FFFFFF',
   barraInativa: 'rgba(255,255,255,0.35)',
+  perigo: '#DC2626',
+  overlay: 'rgba(0,0,0,0.5)',
+  sheet: '#FFFFFF',
 };
 
 export default function StoryViewerScreen() {
@@ -41,8 +51,17 @@ export default function StoryViewerScreen() {
   const [pausado, setPausado] = useState(false);
   const [mostrarLegenda, setMostrarLegenda] = useState(true);
 
+  // Menu ⋯ e modais
+  const [menuAberto, setMenuAberto] = useState(false);
+  const [apagando, setApagando] = useState(false);
+
+  // Contagem de viewers (só para o meu story)
+  const [contagemViewers, setContagemViewers] = useState(0);
+
   const progressInterval = useRef<any>(null);
   const legendaTimeout = useRef<any>(null);
+
+  const meuUid = auth.currentUser?.uid;
 
   // ============ CARREGAR GRUPOS ============
   useEffect(() => {
@@ -51,7 +70,6 @@ export default function StoryViewerScreen() {
       setTodosGrupos(grupos);
       setLoading(false);
 
-      // Encontra o índice do user pedido
       if (userId) {
         const idx = grupos.findIndex((g) => g.autorId === userId);
         if (idx >= 0) {
@@ -63,7 +81,44 @@ export default function StoryViewerScreen() {
     return () => unsub();
   }, [userId]);
 
-  // ============ MOSTRAR LEGENDA POR 3s (só na 1ª story) ============
+  // ============ REGISTAR VISUALIZAÇÃO ============
+  useEffect(() => {
+    if (loading || todosGrupos.length === 0) return;
+
+    const grupo = todosGrupos[grupoAtual];
+    if (!grupo) return;
+
+    const story = grupo.stories[storyAtual];
+    if (!story) return;
+
+    // Não registar o próprio autor
+    if (story.autorId === meuUid) return;
+
+    // Regista a visualização (a função já ignora duplicados)
+    registrarVisualizacao(story.id, story.autorId);
+  }, [loading, grupoAtual, storyAtual, todosGrupos, meuUid]);
+
+  // ============ CONTAGEM DE VIEWERS (para o meu story) ============
+  useEffect(() => {
+    if (loading || todosGrupos.length === 0) return;
+
+    const grupo = todosGrupos[grupoAtual];
+    if (!grupo) return;
+
+    const story = grupo.stories[storyAtual];
+    if (!story) return;
+
+    // Só escuta contagem se for o meu story
+    if (story.autorId !== meuUid) {
+      setContagemViewers(0);
+      return;
+    }
+
+    const unsub = escutarContagemViewers(story.id, setContagemViewers);
+    return () => unsub();
+  }, [loading, grupoAtual, storyAtual, todosGrupos, meuUid]);
+
+  // ============ MOSTRAR LEGENDA 3s (só 1ª story) ============
   useEffect(() => {
     if (grupoAtual === 0 && storyAtual === 0 && mostrarLegenda) {
       legendaTimeout.current = setTimeout(() => {
@@ -83,7 +138,6 @@ export default function StoryViewerScreen() {
     const grupo = todosGrupos[grupoAtual];
     if (!grupo || !grupo.stories[storyAtual]) return;
 
-    // Reseta o progresso
     setProgresso(0);
 
     const inicio = Date.now();
@@ -108,20 +162,17 @@ export default function StoryViewerScreen() {
     const grupo = todosGrupos[grupoAtual];
     if (!grupo) return;
 
-    // Próxima story do mesmo user
     if (storyAtual < grupo.stories.length - 1) {
       setStoryAtual(storyAtual + 1);
       return;
     }
 
-    // Próximo user
     if (grupoAtual < todosGrupos.length - 1) {
       setGrupoAtual(grupoAtual + 1);
       setStoryAtual(0);
       return;
     }
 
-    // Fim — fecha
     router.back();
   }
 
@@ -136,14 +187,92 @@ export default function StoryViewerScreen() {
       setStoryAtual(grupoAnterior.stories.length - 1);
       return;
     }
-    // Primeira story do primeiro grupo — não faz nada
   }
 
-  // ============ FECHAR ============
   function fechar() {
     if (progressInterval.current) clearInterval(progressInterval.current);
     if (legendaTimeout.current) clearTimeout(legendaTimeout.current);
     router.back();
+  }
+
+  // ============ APAGAR STORY ============
+  async function handleApagar() {
+    if (loading || todosGrupos.length === 0) return;
+
+    const grupo = todosGrupos[grupoAtual];
+    if (!grupo) return;
+
+    const story = grupo.stories[storyAtual];
+    if (!story) return;
+
+    const confirmar = () => {
+      if (Platform.OS === 'web') {
+        const ok = window.confirm(
+          'Vais apagar este story permanentemente. Continuar?'
+        );
+        if (ok) executar();
+      } else {
+        Alert.alert(
+          'Apagar story',
+          'Vais apagar este story permanentemente. Continuar?',
+          [
+            { text: 'Cancelar', style: 'cancel' },
+            { text: 'Apagar', style: 'destructive', onPress: executar },
+          ]
+        );
+      }
+    };
+
+    const executar = async () => {
+      setApagando(true);
+      setMenuAberto(false);
+      try {
+        await apagarStoryCompleto(story.id);
+
+        // Remove da lista local
+        setTodosGrupos((prev) => {
+          const novosGrupos = prev.map((g) => ({
+            ...g,
+            stories: g.stories.filter((s) => s.id !== story.id),
+          }));
+
+          // Remove grupos sem stories
+          const filtrados = novosGrupos.filter((g) => g.stories.length > 0);
+
+          if (filtrados.length === 0) {
+            setTimeout(() => router.back(), 100);
+          }
+
+          return filtrados;
+        });
+
+        // Se apagou a última do grupo atual, volta ao início
+        const grupoAtualizado = todosGrupos[grupoAtual];
+        if (grupoAtualizado && storyAtual >= grupoAtualizado.stories.length - 1) {
+          setStoryAtual(0);
+        }
+      } catch (e: any) {
+        const msg = e?.message || 'Não foi possível apagar.';
+        if (Platform.OS === 'web') window.alert(msg);
+        else Alert.alert('Erro', msg);
+      } finally {
+        setApagando(false);
+      }
+    };
+
+    confirmar();
+  }
+
+  // ============ ABRIR VIEWERS ============
+  function abrirViewers() {
+    if (loading || todosGrupos.length === 0) return;
+    const grupo = todosGrupos[grupoAtual];
+    if (!grupo) return;
+    const story = grupo.stories[storyAtual];
+    if (!story) return;
+
+    setMenuAberto(false);
+    router.push(`/story/viewers/${story.id}` as any);
   }
 
   // ============ RENDER ============
@@ -171,17 +300,16 @@ export default function StoryViewerScreen() {
 
   const story = grupo.stories[storyAtual];
   const tempoRelativo = calcularTempo(story.criadoEm);
+  const souEu = story.autorId === meuUid;
 
   return (
     <View style={styles.container}>
-      {/* Imagem de fundo */}
       <Image
         source={{ uri: story.imagemURL }}
         style={styles.imagem}
         resizeMode="cover"
       />
 
-      {/* Overlay escuro no topo */}
       <View style={styles.topOverlay} />
 
       <SafeAreaView style={styles.safeArea}>
@@ -232,7 +360,7 @@ export default function StoryViewerScreen() {
         </View>
       </SafeAreaView>
 
-      {/* Zonas de toque (esquerda/direita) com deteção de pausa */}
+      {/* Zonas de toque */}
       <Pressable
         style={styles.tapLeft}
         onPress={retroceder}
@@ -248,7 +376,35 @@ export default function StoryViewerScreen() {
         delayLongPress={200}
       />
 
-      {/* Legenda (aparece 3s) */}
+      {/* Rodapé — só para stories próprios */}
+      {souEu && (
+        <SafeAreaView style={styles.bottomSafeArea} edges={['bottom']}>
+          <View style={styles.bottomBar}>
+            <TouchableOpacity
+              style={styles.viewersBtn}
+              onPress={abrirViewers}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="eye-outline" size={20} color="#fff" />
+              <Text style={styles.viewersText}>{contagemViewers}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.menuBtn}
+              onPress={() => setMenuAberto(true)}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name="ellipsis-horizontal"
+                size={22}
+                color="#fff"
+              />
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      )}
+
+      {/* Legenda inicial */}
       {mostrarLegenda && grupoAtual === 0 && storyAtual === 0 && (
         <View style={styles.legendaWrapper} pointerEvents="none">
           <View style={styles.legendaBox}>
@@ -258,6 +414,68 @@ export default function StoryViewerScreen() {
           </View>
         </View>
       )}
+
+      {/* Menu ⋯ (bottom sheet) */}
+      <Modal
+        visible={menuAberto}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setMenuAberto(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setMenuAberto(false)}
+        >
+          <Pressable
+            style={styles.sheet}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View style={styles.sheetHandle} />
+
+            <View style={styles.sheetHeader}>
+              <Text style={styles.sheetTitle}>Opções do story</Text>
+            </View>
+
+            {/* Ver quem viu */}
+            <TouchableOpacity
+              style={styles.sheetOption}
+              onPress={abrirViewers}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="eye-outline" size={22} color="#1a1a1a" />
+              <Text style={styles.sheetOptionText}>Ver quem viu</Text>
+            </TouchableOpacity>
+
+            {/* Apagar */}
+            <TouchableOpacity
+              style={styles.sheetOption}
+              onPress={handleApagar}
+              disabled={apagando}
+              activeOpacity={0.7}
+            >
+              {apagando ? (
+                <ActivityIndicator color={COR.perigo} size="small" />
+              ) : (
+                <Ionicons name="trash-outline" size={22} color={COR.perigo} />
+              )}
+              <Text
+                style={[styles.sheetOptionText, { color: COR.perigo }]}
+              >
+                {apagando ? 'A apagar...' : 'Apagar story'}
+              </Text>
+            </TouchableOpacity>
+
+            {/* Cancelar */}
+            <TouchableOpacity
+              style={styles.sheetCancelar}
+              onPress={() => setMenuAberto(false)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.sheetCancelarText}>Cancelar</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -368,19 +586,19 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 100,
     left: 0,
-    bottom: 0,
+    bottom: 100,
     width: '33%',
   },
   tapRight: {
     position: 'absolute',
     top: 100,
     right: 0,
-    bottom: 0,
+    bottom: 100,
     width: '67%',
   },
   legendaWrapper: {
     position: 'absolute',
-    bottom: 40,
+    bottom: 100,
     left: 0,
     right: 0,
     alignItems: 'center',
@@ -404,5 +622,97 @@ const styles = StyleSheet.create({
   emptyText: {
     color: '#fff',
     fontSize: 16,
+  },
+  bottomSafeArea: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+  },
+  bottomBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  viewersBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderRadius: 20,
+  },
+  viewersText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  menuBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // Modal / bottom sheet
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: COR.overlay,
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    backgroundColor: COR.sheet,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 24,
+  },
+  sheetHandle: {
+    alignSelf: 'center',
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#D1D5DB',
+    marginTop: 10,
+    marginBottom: 16,
+  },
+  sheetHeader: {
+    paddingHorizontal: 24,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  sheetTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  sheetOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+  },
+  sheetOptionText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#111827',
+  },
+  sheetCancelar: {
+    marginHorizontal: 24,
+    marginTop: 12,
+    paddingVertical: 14,
+    borderRadius: 10,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+  },
+  sheetCancelarText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#111827',
   },
 });
