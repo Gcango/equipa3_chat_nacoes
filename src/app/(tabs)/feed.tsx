@@ -21,6 +21,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ExploreFeed } from '../../components/ExploreFeed';
 import { PostMenu } from '../../components/PostMenu';
 import { ScreenContainer } from '../../components/ScreenContainer';
+import { ShareModal } from '../../components/ShareModal';
 import { StoriesBar } from '../../components/StoriesBar';
 import { escutarContagemComentarios } from '../../services/comments';
 import { auth } from '../../services/firebase';
@@ -50,8 +51,9 @@ export default function FeedScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [naoLidas, setNaoLidas] = useState(0);
 
-  // Estado do menu ⋯
+  // Menu ⋯ e partilha
   const [postMenuAberto, setPostMenuAberto] = useState<Post | null>(null);
+  const [shareAberto, setShareAberto] = useState<Post | null>(null);
 
   useEffect(() => {
     const user = auth.currentUser;
@@ -76,11 +78,7 @@ export default function FeedScreen() {
     setTimeout(() => setRefreshing(false), 800);
   }
 
-  const meuUid = auth.currentUser?.uid;
-
   function renderPost({ item }: { item: Post }) {
-    const souEu = item.autorId === meuUid;
-
     return (
       <View style={styles.postCard}>
         <View style={styles.postHeader}>
@@ -107,17 +105,12 @@ export default function FeedScreen() {
             </View>
           </TouchableOpacity>
 
-          {/* Botão ⋯ (3 pontinhos) */}
           <TouchableOpacity
             style={styles.moreBtn}
             onPress={() => setPostMenuAberto(item)}
             activeOpacity={0.7}
           >
-            <Ionicons
-              name="ellipsis-horizontal"
-              size={22}
-              color="#1a1a1a"
-            />
+            <Ionicons name="ellipsis-horizontal" size={22} color="#1a1a1a" />
           </TouchableOpacity>
         </View>
 
@@ -132,6 +125,13 @@ export default function FeedScreen() {
         <View style={styles.postFooter}>
           <LikeButton post={item} />
           <CommentButton postId={item.id} postAutorId={item.autorId} />
+          <TouchableOpacity
+            style={styles.postAction}
+            onPress={() => setShareAberto(item)}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="paper-plane-outline" size={20} color="#666" />
+          </TouchableOpacity>
         </View>
       </View>
     );
@@ -165,7 +165,7 @@ export default function FeedScreen() {
               <Ionicons name="add-circle-outline" size={28} color="#1a1a1a" />
             </TouchableOpacity>
 
-            <Text style={styles.headerTitle}>Chat Nações</Text>
+            <Text style={styles.headerTitle}>Gerabriel</Text>
 
             <TouchableOpacity
               style={styles.headerBtn}
@@ -264,6 +264,26 @@ export default function FeedScreen() {
           conteudoId={postMenuAberto?.id || ''}
           autorId={postMenuAberto?.autorId || ''}
           autorNome={postMenuAberto?.autorNome}
+        />
+
+        {/* Modal de partilha */}
+        <ShareModal
+          visivel={!!shareAberto}
+          fechar={() => setShareAberto(null)}
+          partilha={
+            shareAberto
+              ? {
+                  tipo: 'post',
+                  partilhaId: shareAberto.id,
+                  partilhaAutor: shareAberto.autorNome,
+                  partilhaConteudo: shareAberto.conteudo || '',
+                  partilhaThumbURL:
+                    shareAberto.imagens && shareAberto.imagens.length > 0
+                      ? shareAberto.imagens[0]
+                      : '',
+                }
+              : null
+          }
         />
       </SafeAreaView>
     </ScreenContainer>

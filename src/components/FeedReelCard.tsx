@@ -16,10 +16,11 @@ import { auth } from '../services/firebase';
 import { addLikeReel, Reel, removeLikeReel } from '../services/reels';
 import { PostMenu } from './PostMenu';
 import { ReportModal } from './ReportModal';
+import { ShareModal } from './ShareModal';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const VIDEO_WIDTH = Math.min(SCREEN_W - 32, 568);
-const VIDEO_HEIGHT = VIDEO_WIDTH * (5 / 4); // 4:5
+const VIDEO_HEIGHT = VIDEO_WIDTH * (5 / 4);
 
 const ROLE_CORES: Record<string, string> = {
   aluno: '#007AFF',
@@ -62,9 +63,9 @@ export function FeedReelCard({ reel, estaVisivel, onApagado }: Props) {
   const [videoPronto, setVideoPronto] = useState(false);
   const [pausadoManualmente, setPausadoManualmente] = useState(false);
 
-  // Menu ⋯
   const [menuAberto, setMenuAberto] = useState(false);
   const [reportVisivel, setReportVisivel] = useState(false);
+  const [shareAberto, setShareAberto] = useState(false);
 
   const meuUid = auth.currentUser?.uid;
   const curtiu = meuUid ? curtidas.includes(meuUid) : false;
@@ -164,7 +165,7 @@ export function FeedReelCard({ reel, estaVisivel, onApagado }: Props) {
 
   return (
     <View style={styles.card}>
-      {/* Header — igual ao post */}
+      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.headerLeft}
@@ -198,7 +199,6 @@ export function FeedReelCard({ reel, estaVisivel, onApagado }: Props) {
           </View>
         </TouchableOpacity>
 
-        {/* Botão ⋯ */}
         <TouchableOpacity
           style={styles.moreBtn}
           onPress={() => setMenuAberto(true)}
@@ -268,6 +268,7 @@ export function FeedReelCard({ reel, estaVisivel, onApagado }: Props) {
         </Text>
       ) : null}
 
+      {/* Footer com like, comentário e PARTILHAR */}
       <View style={styles.footer}>
         <TouchableOpacity
           style={styles.action}
@@ -302,6 +303,15 @@ export function FeedReelCard({ reel, estaVisivel, onApagado }: Props) {
           <Ionicons name="chatbubble-outline" size={20} color="#666" />
           <Text style={styles.actionText}>0</Text>
         </TouchableOpacity>
+
+        {/* ✨ Botão Partilhar */}
+        <TouchableOpacity
+          style={styles.action}
+          onPress={() => setShareAberto(true)}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="paper-plane-outline" size={20} color="#666" />
+        </TouchableOpacity>
       </View>
 
       {/* Menu ⋯ */}
@@ -326,6 +336,19 @@ export function FeedReelCard({ reel, estaVisivel, onApagado }: Props) {
         alvoId={reel.id}
         postId={reel.id}
         conteudoDenunciado={reel.legenda || '[Reel sem legenda]'}
+      />
+
+      {/* ✨ Modal de partilha */}
+      <ShareModal
+        visivel={shareAberto}
+        fechar={() => setShareAberto(false)}
+        partilha={{
+          tipo: 'reel',
+          partilhaId: reel.id,
+          partilhaAutor: reel.autorNome,
+          partilhaConteudo: reel.legenda || '',
+          partilhaThumbURL: reel.thumbURL || '',
+        }}
       />
     </View>
   );

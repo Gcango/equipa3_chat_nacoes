@@ -73,7 +73,7 @@ export function Sidebar() {
           style={expanded ? styles.logo : styles.logoSmall}
           resizeMode="contain"
         />
-        {expanded && <Text style={styles.headerTitle}>Chat Nações</Text>}
+        {expanded && <Text style={styles.headerTitle}></Text>}
       </View>
 
       <View style={styles.menu}>
@@ -130,8 +130,8 @@ const styles = StyleSheet.create({
   },
   logoSmall: { width: 44, height: 44, borderRadius: 10 },
   logo: {
-    width: 72,
-    height: 72,
+    width: 170,
+    height: 110,
     borderRadius: 16,
     marginBottom: 8,
   },

@@ -8,6 +8,7 @@ import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
@@ -23,6 +24,7 @@ const DOMINIO_ESCOLA = '@epfundao.edu.pt';
 
 export default function RegisterScreen() {
   const router = useRouter();
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -39,11 +41,15 @@ export default function RegisterScreen() {
     }
 
     if (password.length < 6) {
-      Alert.alert('Password fraca', 'A password tem de ter pelo menos 6 caracteres.');
+      Alert.alert(
+        'Password fraca',
+        'A password tem de ter pelo menos 6 caracteres.'
+      );
       return;
     }
 
     setLoading(true);
+
     try {
       const userCredential = await createUserWithEmailAndPassword(
         auth,
@@ -98,7 +104,13 @@ export default function RegisterScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <View style={styles.content}>
-          <Text style={styles.title}>Chat Nações</Text>
+          {/* Logo Chat Nações */}
+          <Image
+            source={require('../../../assets/images/ChatNacoes.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+
           <Text style={styles.subtitle}>Criar conta</Text>
 
           <TextInput
@@ -125,6 +137,7 @@ export default function RegisterScreen() {
             style={[styles.button, loading && styles.buttonDisabled]}
             onPress={handleRegister}
             disabled={loading}
+            activeOpacity={0.7}
           >
             {loading ? (
               <ActivityIndicator color="#fff" />
@@ -133,8 +146,13 @@ export default function RegisterScreen() {
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
-            <Text style={styles.link}>Já tens conta? Faz login</Text>
+          <TouchableOpacity
+            onPress={() => router.push('/(auth)/login')}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.link}>
+              Já tens conta? Faz login
+            </Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -146,6 +164,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+
   content: {
     flex: 1,
     padding: 24,
@@ -154,19 +173,21 @@ const styles = StyleSheet.create({
     width: '100%',
     alignSelf: 'center',
   },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
-    textAlign: 'center',
+
+  logo: {
+    width: 220,
+    height: 112,
+    alignSelf: 'center',
     marginBottom: 8,
   },
+
   subtitle: {
     fontSize: 16,
     color: '#666',
     textAlign: 'center',
     marginBottom: 32,
   },
+
   input: {
     backgroundColor: '#f5f5f5',
     borderRadius: 8,
@@ -175,6 +196,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     color: '#000',
   },
+
   button: {
     backgroundColor: '#007AFF',
     borderRadius: 8,
@@ -182,14 +204,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 8,
   },
+
   buttonDisabled: {
     opacity: 0.6,
   },
+
   buttonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
   },
+
   link: {
     color: '#007AFF',
     textAlign: 'center',

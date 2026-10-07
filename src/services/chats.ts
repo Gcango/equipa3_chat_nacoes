@@ -29,10 +29,18 @@ export interface Chat {
   criadoEm: Timestamp | null;
 }
 
+export type TipoMensagem = 'texto' | 'post' | 'reel';
+
 export interface Mensagem {
   id: string;
   autorId: string;
   texto: string;
+  tipo: TipoMensagem;
+  partilhaId: string;
+  partilhaAutor: string;
+  partilhaConteudo: string;
+  partilhaThumbURL: string;
+  partilhaTipo: 'post' | 'reel';
   visto: boolean;
   apagadaPara: string[];
   apagadaParaTodos: boolean;
@@ -75,7 +83,7 @@ export async function abrirChatComUser(outroUid: string): Promise<string> {
 }
 
 // ============================================================
-// ENVIAR MENSAGEM
+// ENVIAR MENSAGEM (texto)
 // ============================================================
 
 export async function enviarMensagem(
@@ -90,6 +98,12 @@ export async function enviarMensagem(
   await addDoc(mensagensRef, {
     autorId: user.uid,
     texto: texto.trim(),
+    tipo: 'texto',
+    partilhaId: '',
+    partilhaAutor: '',
+    partilhaConteudo: '',
+    partilhaThumbURL: '',
+    partilhaTipo: 'post',
     visto: false,
     apagadaPara: [],
     apagadaParaTodos: false,
@@ -106,6 +120,59 @@ export async function enviarMensagem(
 
   await updateDoc(chatRef, {
     ultimaMensagem: texto.trim().slice(0, 80),
+    ultimaMensagemPor: user.uid,
+    ultimaMensagemAt: serverTimestamp(),
+    [`naoLidas.${outroUid}`]: increment(1),
+  });
+}
+
+// ============================================================
+// ENVIAR PARTILHA
+// ============================================================
+
+export async function enviarPartilha(
+  chatId: string,
+  params: {
+    tipo: 'post' | 'reel';
+    partilhaId: string;
+    partilhaAutor: string;
+    partilhaConteudo: string;
+    partilhaThumbURL: string;
+  }
+): Promise<void> {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Utilizador não autenticado');
+
+  const mensagensRef = collection(db, 'chats', chatId, 'mensagens');
+  await addDoc(mensagensRef, {
+    autorId: user.uid,
+    texto: '',
+    tipo: params.tipo,
+    partilhaId: params.partilhaId,
+    partilhaAutor: params.partilhaAutor,
+    partilhaConteudo: params.partilhaConteudo,
+    partilhaThumbURL: params.partilhaThumbURL,
+    partilhaTipo: params.tipo,
+    visto: false,
+    apagadaPara: [],
+    apagadaParaTodos: false,
+    criadoEm: serverTimestamp(),
+  });
+
+  const chatRef = doc(db, 'chats', chatId);
+  const chatSnap = await getDoc(chatRef);
+  if (!chatSnap.exists()) return;
+
+  const participantes = chatSnap.data().participantes as string[];
+  const outroUid = participantes.find((p) => p !== user.uid);
+  if (!outroUid) return;
+
+  const previewText = `📤 Partilhou ${
+    params.tipo === 'reel' ? 'um reel' : 'uma publicação'
+  }`;
+
+  await updateDoc(chatRef, {
+    ultimaMensagem: previewText,
     ultimaMensagemPor: user.uid,
     ultimaMensagemAt: serverTimestamp(),
     [`naoLidas.${outroUid}`]: increment(1),
@@ -132,6 +199,12 @@ export function escutarMensagens(
           id: d.id,
           autorId: data.autorId,
           texto: data.texto || '',
+          tipo: data.tipo || 'texto',
+          partilhaId: data.partilhaId || '',
+          partilhaAutor: data.partilhaAutor || '',
+          partilhaConteudo: data.partilhaConteudo || '',
+          partilhaThumbURL: data.partilhaThumbURL || '',
+          partilhaTipo: data.partilhaTipo || 'post',
           visto: data.visto || false,
           apagadaPara: data.apagadaPara || [],
           apagadaParaTodos: data.apagadaParaTodos || false,
@@ -224,9 +297,6 @@ export async function marcarMensagensComoVistas(
 // APAGAR MENSAGENS
 // ============================================================
 
-/**
- * Apaga uma mensagem só para o user atual
- */
 export async function apagarMensagemParaMim(
   chatId: string,
   mensagemId: string,
@@ -243,9 +313,6 @@ export async function apagarMensagemParaMim(
   }
 }
 
-/**
- * Apaga uma mensagem para todos (só se for minha e não vista)
- */
 export async function apagarMensagemParaTodos(
   chatId: string,
   mensagemId: string

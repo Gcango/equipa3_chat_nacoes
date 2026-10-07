@@ -10,8 +10,7 @@ import {
   serverTimestamp,
   setDoc,
   Timestamp,
-  where,
-  writeBatch
+  where
 } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { auth, db, storage } from './firebase';
@@ -271,17 +270,11 @@ export async function apagarStoryCompleto(storyId: string): Promise<void> {
       throw new Error('Só podes apagar o teu próprio story');
     }
 
-    // Apaga subcoleção de viewers
-    const { getDocs } = await import('firebase/firestore');
-    const viewersRef = collection(db, 'stories', storyId, 'viewers');
-    const viewersSnap = await getDocs(viewersRef);
+    // Apaga apenas o documento principal.
+    // Os viewers ficam órfãos (não acessíveis), mas não bloqueiam nada.
+    await deleteDoc(storyRef);
 
-    const batch = writeBatch(db);
-    viewersSnap.docs.forEach((d) => batch.delete(d.ref));
-    batch.delete(storyRef);
-    await batch.commit();
-
-    console.log(`🗑️ Story ${storyId} apagado com ${viewersSnap.size} viewers`);
+    console.log(`🗑️ Story ${storyId} apagado`);
   } catch (e) {
     console.error('Erro ao apagar story:', e);
     throw e;

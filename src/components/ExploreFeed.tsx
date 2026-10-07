@@ -22,6 +22,7 @@ import { escutarReels, Reel } from '../services/reels';
 import { FeedReelCard } from './FeedReelCard';
 import { PostMenu } from './PostMenu';
 import { ReportModal } from './ReportModal';
+import { ShareModal } from './ShareModal';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const IMAGE_WIDTH = Math.min(SCREEN_W - 32, 568);
@@ -58,9 +59,9 @@ export function ExploreFeed() {
   const [loading, setLoading] = useState(true);
   const [indexVisivel, setIndexVisivel] = useState(0);
 
-  // Menu ⋯ para posts
   const [postMenuAberto, setPostMenuAberto] = useState<Post | null>(null);
   const [reportPostVisivel, setReportPostVisivel] = useState(false);
+  const [shareAberto, setShareAberto] = useState<Post | null>(null);
 
   useEffect(() => {
     const unsub1 = escutarPosts((lista) => setPosts(lista));
@@ -136,6 +137,7 @@ export function ExploreFeed() {
       <PostFeedCard
         post={item.dados as Post}
         onMenuPress={() => setPostMenuAberto(item.dados as Post)}
+        onSharePress={() => setShareAberto(item.dados as Post)}
       />
     );
   }
@@ -155,7 +157,6 @@ export function ExploreFeed() {
         removeClippedSubviews
       />
 
-      {/* Menu ⋯ para posts */}
       <PostMenu
         visivel={!!postMenuAberto}
         fechar={() => setPostMenuAberto(null)}
@@ -166,7 +167,6 @@ export function ExploreFeed() {
         onDenunciar={() => setReportPostVisivel(true)}
       />
 
-      {/* Modal de denúncia */}
       {postMenuAberto && (
         <ReportModal
           visivel={reportPostVisivel}
@@ -179,19 +179,37 @@ export function ExploreFeed() {
           }
         />
       )}
+
+      <ShareModal
+        visivel={!!shareAberto}
+        fechar={() => setShareAberto(null)}
+        partilha={
+          shareAberto
+            ? {
+                tipo: 'post',
+                partilhaId: shareAberto.id,
+                partilhaAutor: shareAberto.autorNome,
+                partilhaConteudo: shareAberto.conteudo || '',
+                partilhaThumbURL:
+                  shareAberto.imagens && shareAberto.imagens.length > 0
+                    ? shareAberto.imagens[0]
+                    : '',
+              }
+            : null
+        }
+      />
     </>
   );
 }
 
-/**
- * Card de post no feed (igual ao "Para ti")
- */
 function PostFeedCard({
   post,
   onMenuPress,
+  onSharePress,
 }: {
   post: Post;
   onMenuPress: () => void;
+  onSharePress: () => void;
 }) {
   const router = useRouter();
   const uid = auth.currentUser?.uid;
@@ -299,6 +317,10 @@ function PostFeedCard({
             )
           }
         />
+
+        <TouchableOpacity style={styles.action} onPress={onSharePress}>
+          <Ionicons name="paper-plane-outline" size={20} color="#666" />
+        </TouchableOpacity>
       </View>
     </View>
   );

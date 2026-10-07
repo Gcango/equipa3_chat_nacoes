@@ -21,6 +21,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PostMenu } from '../../components/PostMenu';
 import { ReportModal } from '../../components/ReportModal';
+import { ShareModal } from '../../components/ShareModal';
 import {
   apagarComentario,
   apagarResposta,
@@ -89,8 +90,9 @@ export default function PostDetailScreen() {
     conteudo: string;
   } | null>(null);
 
-  // Menu ⋯
+  // Menu ⋯ e partilha
   const [menuAberto, setMenuAberto] = useState(false);
+  const [shareAberto, setShareAberto] = useState(false);
 
   const scrollRef = useRef<ScrollView>(null);
   const inputRef = useRef<TextInput>(null);
@@ -121,7 +123,7 @@ export default function PostDetailScreen() {
     carregarPost();
   }, [postId]);
 
-  // Escutar post em tempo real (likes)
+  // Escutar post em tempo real
   useEffect(() => {
     if (!postId) return;
     const unsub = onSnapshot(doc(db, 'posts', postId), (snap) => {
@@ -402,7 +404,6 @@ export default function PostDetailScreen() {
   const uid = auth.currentUser?.uid;
   const curtiu = uid ? post.curtidas.includes(uid) : false;
   const numLikes = post.curtidas.length;
-  const souEu = uid === post.autorId;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -486,6 +487,17 @@ export default function PostDetailScreen() {
                 />
                 <Text style={styles.actionText}>{comentarios.length}</Text>
               </View>
+
+              <TouchableOpacity
+                style={styles.action}
+                onPress={() => setShareAberto(true)}
+              >
+                <Ionicons
+                  name="paper-plane-outline"
+                  size={24}
+                  color="#1a1a1a"
+                />
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -577,7 +589,6 @@ export default function PostDetailScreen() {
           )
         }
         onApagado={() => {
-          // Após apagar, volta ao ecrã anterior
           setTimeout(() => router.back(), 200);
         }}
       />
@@ -593,6 +604,20 @@ export default function PostDetailScreen() {
           conteudoDenunciado={reportAlvo.conteudo}
         />
       )}
+
+      {/* Modal de partilha */}
+      <ShareModal
+        visivel={shareAberto}
+        fechar={() => setShareAberto(false)}
+        partilha={{
+          tipo: 'post',
+          partilhaId: post.id,
+          partilhaAutor: post.autorNome,
+          partilhaConteudo: post.conteudo || '',
+          partilhaThumbURL:
+            post.imagens && post.imagens.length > 0 ? post.imagens[0] : '',
+        }}
+      />
     </SafeAreaView>
   );
 }

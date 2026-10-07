@@ -18,6 +18,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { SharedPostCard } from '../../components/SharedPostCard';
 import {
   apagarMensagemParaMim,
   apagarMensagemParaTodos,
@@ -276,6 +277,8 @@ export default function ChatScreen() {
             contentContainerStyle={styles.listContent}
             renderItem={({ item }) => {
               const minha = item.autorId === meuUid;
+              const ehPartilha = item.tipo === 'post' || item.tipo === 'reel';
+
               return (
                 <View
                   style={[
@@ -283,45 +286,97 @@ export default function ChatScreen() {
                     minha ? styles.msgRowMinha : styles.msgRowOutra,
                   ]}
                 >
-                  <Pressable
-                    onLongPress={() => abrirMenuMensagem(item)}
-                    delayLongPress={300}
-                    style={[
-                      styles.msgBubble,
-                      minha ? styles.msgMinha : styles.msgOutra,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.msgText,
-                        minha ? styles.msgTextMinha : styles.msgTextOutra,
-                      ]}
-                    >
-                      {item.texto}
-                    </Text>
-                    <View style={styles.msgFooter}>
-                      <Text
+                  {ehPartilha ? (
+                    // ====== Card de partilha ======
+                    <View style={styles.shareWrapper}>
+                      <SharedPostCard
+                        tipo={item.tipo === 'reel' ? 'reel' : 'post'}
+                        partilhaId={item.partilhaId}
+                        autor={item.partilhaAutor}
+                        conteudo={item.partilhaConteudo}
+                        thumbURL={item.partilhaThumbURL}
+                        minha={minha}
+                      />
+                      <View
                         style={[
-                          styles.msgHora,
-                          minha ? styles.msgHoraMinha : styles.msgHoraOutra,
+                          styles.shareMeta,
+                          minha
+                            ? styles.shareMetaMinha
+                            : styles.shareMetaOutra,
                         ]}
                       >
-                        {formatarHora(item.criadoEm)}
-                      </Text>
-                      {minha && (
-                        <Ionicons
-                          name={item.visto ? 'checkmark-done' : 'checkmark'}
-                          size={14}
-                          color={
-                            item.visto
-                              ? '#4FC3F7'
-                              : 'rgba(255,255,255,0.6)'
-                          }
-                          style={{ marginLeft: 4 }}
-                        />
-                      )}
+                        <Text
+                          style={[
+                            styles.msgHora,
+                            minha
+                              ? styles.msgHoraMinha
+                              : styles.msgHoraOutra,
+                          ]}
+                        >
+                          {formatarHora(item.criadoEm)}
+                        </Text>
+                        {minha && (
+                          <Ionicons
+                            name={
+                              item.visto ? 'checkmark-done' : 'checkmark'
+                            }
+                            size={14}
+                            color={
+                              item.visto
+                                ? '#4FC3F7'
+                                : 'rgba(0,0,0,0.4)'
+                            }
+                            style={{ marginLeft: 4 }}
+                          />
+                        )}
+                      </View>
                     </View>
-                  </Pressable>
+                  ) : (
+                    // ====== Mensagem de texto normal ======
+                    <Pressable
+                      onLongPress={() => abrirMenuMensagem(item)}
+                      delayLongPress={300}
+                      style={[
+                        styles.msgBubble,
+                        minha ? styles.msgMinha : styles.msgOutra,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.msgText,
+                          minha ? styles.msgTextMinha : styles.msgTextOutra,
+                        ]}
+                      >
+                        {item.texto}
+                      </Text>
+                      <View style={styles.msgFooter}>
+                        <Text
+                          style={[
+                            styles.msgHora,
+                            minha
+                              ? styles.msgHoraMinha
+                              : styles.msgHoraOutra,
+                          ]}
+                        >
+                          {formatarHora(item.criadoEm)}
+                        </Text>
+                        {minha && (
+                          <Ionicons
+                            name={
+                              item.visto ? 'checkmark-done' : 'checkmark'
+                            }
+                            size={14}
+                            color={
+                              item.visto
+                                ? '#4FC3F7'
+                                : 'rgba(255,255,255,0.6)'
+                            }
+                            style={{ marginLeft: 4 }}
+                          />
+                        )}
+                      </View>
+                    </Pressable>
+                  )}
                 </View>
               );
             }}
@@ -511,6 +566,23 @@ const styles = StyleSheet.create({
   },
   msgHoraOutra: {
     color: COR.textoClaro,
+  },
+  // ====== Estilos do card de partilha ======
+  shareWrapper: {
+    maxWidth: '78%',
+  },
+  shareMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    marginTop: 4,
+    gap: 2,
+  },
+  shareMetaMinha: {
+    // sem alteração (para futura personalização)
+  },
+  shareMetaOutra: {
+    // sem alteração (para futura personalização)
   },
   inputBar: {
     flexDirection: 'row',

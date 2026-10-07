@@ -18,6 +18,7 @@ import { addLikeReel, Reel, removeLikeReel } from '../services/reels';
 import { FollowButton } from './FollowButton';
 import { PostMenu } from './PostMenu';
 import { ReportModal } from './ReportModal';
+import { ShareModal } from './ShareModal';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
@@ -54,6 +55,9 @@ export function ReelItem({ reel, estaVisivel, somAtivo, onApagado }: Props) {
 
   // Modal de denúncia
   const [reportVisivel, setReportVisivel] = useState(false);
+
+  // ✨ Modal de partilha
+  const [shareAberto, setShareAberto] = useState(false);
 
   const meuUid = auth.currentUser?.uid;
   const curtiu = meuUid ? curtidas.includes(meuUid) : false;
@@ -241,9 +245,14 @@ export function ReelItem({ reel, estaVisivel, somAtivo, onApagado }: Props) {
           <Text style={styles.actionText}>0</Text>
         </TouchableOpacity>
 
-        <View style={styles.actionBtn}>
+        {/* ✨ Botão partilhar */}
+        <TouchableOpacity
+          style={styles.actionBtn}
+          onPress={() => setShareAberto(true)}
+          activeOpacity={0.7}
+        >
           <Ionicons name="paper-plane-outline" size={28} color="#fff" />
-        </View>
+        </TouchableOpacity>
       </View>
 
       {/* Menu ⋯ */}
@@ -269,6 +278,19 @@ export function ReelItem({ reel, estaVisivel, somAtivo, onApagado }: Props) {
         alvoId={reel.id}
         postId={reel.id}
         conteudoDenunciado={reel.legenda || '[Reel sem legenda]'}
+      />
+
+      {/* ✨ Modal de partilha */}
+      <ShareModal
+        visivel={shareAberto}
+        fechar={() => setShareAberto(false)}
+        partilha={{
+          tipo: 'reel',
+          partilhaId: reel.id,
+          partilhaAutor: reel.autorNome,
+          partilhaConteudo: reel.legenda || '',
+          partilhaThumbURL: reel.thumbURL || '',
+        }}
       />
     </View>
   );
