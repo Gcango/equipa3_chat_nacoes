@@ -153,7 +153,7 @@ export default function FeedScreen() {
         {isDesktop ? (
           <View style={styles.header}>
             <View style={styles.headerSpacer} />
-            <Text style={styles.headerTitle}>Chat Nações</Text>
+            <Text style={styles.headerTitle}>Gerabriel</Text>
             <View style={styles.headerSpacer} />
           </View>
         ) : (
